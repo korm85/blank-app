@@ -110,32 +110,46 @@ export async function GET(req: NextRequest) {
   const enc = encodeURIComponent(password)
   const attempts: { url: string; error: string }[] = []
 
-  // Try transaction pooler (port 6543) then session pooler (port 5432) for each region
+  async function tryUrl(url: string) {
+    const { client, error } = await tryConnect(url)
+    if (client) {
+      try {
+        await client.query(SCHEMA_SQL)
+        await client.end()
+        return url
+      } catch (e: unknown) {
+        await client.end()
+        throw e
+      }
+    }
+    attempts.push({ url: url.replace(enc, '***'), error })
+    return null
+  }
+
+  // 1. Direct connection (no pooler) — works when Vercel can't reach pooler
+  const directUrl = `postgresql://postgres:${enc}@db.${ref}.supabase.co:5432/postgres`
+  try {
+    const hit = await tryUrl(directUrl)
+    if (hit) return NextResponse.json({ success: true, via: 'direct', message: 'Database initialized.' })
+  } catch (e: unknown) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
+  }
+
+  // 2. Supavisor pooler — transaction (6543) then session (5432) per region
   for (const region of REGIONS) {
     for (const port of [6543, 5432]) {
       const url = `postgresql://postgres.${ref}:${enc}@aws-0-${region}.pooler.supabase.com:${port}/postgres`
-      const { client, error } = await tryConnect(url)
-      if (client) {
-        try {
-          await client.query(SCHEMA_SQL)
-          await client.end()
-          return NextResponse.json({
-            success: true,
-            region,
-            port,
-            message: 'Database initialized — tables, RLS policies, and users created.'
-          })
-        } catch (e: unknown) {
-          await client.end()
-          return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
-        }
+      try {
+        const hit = await tryUrl(url)
+        if (hit) return NextResponse.json({ success: true, via: `pooler-${region}:${port}`, message: 'Database initialized.' })
+      } catch (e: unknown) {
+        return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
       }
-      attempts.push({ url: url.replace(enc, '***'), error })
     }
   }
 
   return NextResponse.json({
     error: 'Could not connect to database.',
-    attempts: attempts.slice(0, 6)
+    attempts: attempts.slice(0, 8)
   }, { status: 500 })
 }
