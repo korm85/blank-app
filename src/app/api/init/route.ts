@@ -79,17 +79,17 @@ const REGIONS = [
   'ca-central-1', 'sa-east-1'
 ]
 
-async function tryConnect(ref: string, password: string, region: string): Promise<Client | null> {
+async function tryConnect(url: string): Promise<{ client: Client | null; error: string }> {
   const client = new Client({
-    connectionString: `postgresql://postgres.${ref}:${encodeURIComponent(password)}@aws-0-${region}.pooler.supabase.com:6543/postgres`,
+    connectionString: url,
     ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 4000,
+    connectionTimeoutMillis: 8000,
   })
   try {
     await client.connect()
-    return client
-  } catch {
-    return null
+    return { client, error: '' }
+  } catch (e) {
+    return { client: null, error: e instanceof Error ? e.message : String(e) }
   }
 }
 
@@ -101,35 +101,41 @@ export async function GET(req: NextRequest) {
   }
 
   const ref = process.env.SUPABASE_PROJECT_REF!
-  // Accept password from env var (production) or query param (first-time setup)
   const password = process.env.SUPABASE_DB_PASSWORD ?? req.nextUrl.searchParams.get('dbpass')
 
   if (!password) {
     return NextResponse.json({ error: 'dbpass parameter required for first-time setup' }, { status: 400 })
   }
 
-  let client: Client | null = null
-  let connectedRegion = ''
+  const enc = encodeURIComponent(password)
+  const attempts: { url: string; error: string }[] = []
 
+  // Try transaction pooler (port 6543) then session pooler (port 5432) for each region
   for (const region of REGIONS) {
-    client = await tryConnect(ref, password, region)
-    if (client) { connectedRegion = region; break }
+    for (const port of [6543, 5432]) {
+      const url = `postgresql://postgres.${ref}:${enc}@aws-0-${region}.pooler.supabase.com:${port}/postgres`
+      const { client, error } = await tryConnect(url)
+      if (client) {
+        try {
+          await client.query(SCHEMA_SQL)
+          await client.end()
+          return NextResponse.json({
+            success: true,
+            region,
+            port,
+            message: 'Database initialized — tables, RLS policies, and users created.'
+          })
+        } catch (e: unknown) {
+          await client.end()
+          return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
+        }
+      }
+      attempts.push({ url: url.replace(enc, '***'), error })
+    }
   }
 
-  if (!client) {
-    return NextResponse.json({ error: 'Could not connect to database. Check password and try again.' }, { status: 500 })
-  }
-
-  try {
-    await client.query(SCHEMA_SQL)
-    await client.end()
-    return NextResponse.json({
-      success: true,
-      region: connectedRegion,
-      message: 'Database initialized — tables, RLS policies, and users created.'
-    })
-  } catch (e: unknown) {
-    await client.end()
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
-  }
+  return NextResponse.json({
+    error: 'Could not connect to database.',
+    attempts: attempts.slice(0, 6)
+  }, { status: 500 })
 }
