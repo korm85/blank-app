@@ -83,7 +83,7 @@ async function tryConnect(url: string): Promise<{ client: Client | null; error: 
   const client = new Client({
     connectionString: url,
     ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 8000,
+    connectionTimeoutMillis: 5000,
   })
   try {
     await client.connect()
@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
     return null
   }
 
-  // 1. Direct connection (no pooler) — works when Vercel can't reach pooler
+  // 1. Direct connection (no pooler) — fastest, no region guessing needed
   const directUrl = `postgresql://postgres:${enc}@db.${ref}.supabase.co:5432/postgres`
   try {
     const hit = await tryUrl(directUrl)
@@ -135,8 +135,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
   }
 
-  // 2. Supavisor pooler — transaction (6543) then session (5432) per region
-  for (const region of REGIONS) {
+  // 2. Try first 3 most-common pooler regions only (keeps under Vercel's timeout)
+  const quickRegions = ['us-east-1', 'eu-west-1', 'eu-central-1']
+  for (const region of quickRegions) {
     for (const port of [6543, 5432]) {
       const url = `postgresql://postgres.${ref}:${enc}@aws-0-${region}.pooler.supabase.com:${port}/postgres`
       try {
