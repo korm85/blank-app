@@ -57,7 +57,13 @@ export default function DashboardPage() {
   const [activeMatch, setActiveMatch] = useState<Match | null>(null)
 
   const loadData = useCallback(async () => {
-    const upcoming = getUpcomingDaysMatches(2)
+    // Show next 4 matches where betting is still open, plus any live/today matches
+    const now = new Date()
+    const todayStr = now.toISOString().slice(0, 10)
+    const upcoming = GROUP_STAGE_MATCHES
+      .filter(m => m.kickoffUtc.slice(0, 10) >= todayStr)
+      .sort((a, b) => new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime())
+      .slice(0, 4)
 
     // Standings: load all graded bets
     try {
@@ -139,7 +145,6 @@ export default function DashboardPage() {
   if (!isLoggedIn) return <UserSelector />
 
   const today = new Date().toISOString().split('T')[0]
-  const groups = groupByDate(matches)
   const nextMatch = matches.length === 0 ? getNextMatch() : null
 
   return (
@@ -201,47 +206,43 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Upcoming bets ─────────────────────────────────────────── */}
-      {loading ? (
-        <div className="px-4 space-y-3 mt-4">
-          {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-2xl shimmer" />)}
+      <div className="px-4 mt-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            Up next
+          </h3>
+          <Link href="/bets" className="text-xs font-semibold" style={{ color: '#FFD60A' }}>
+            All matches →
+          </Link>
         </div>
-      ) : groups.length > 0 ? (
-        <div className="px-4 pb-2 space-y-5 mt-4">
-          {groups.map(({ date, label, matches: dayMatches }) => (
-            <div key={date}>
-              <h3 className="text-xs font-semibold uppercase tracking-wider mb-2.5 flex items-center gap-2"
-                style={{ color: 'var(--text-secondary)' }}>
-                {date === today ? (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
-                    style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}>Today</span>
-                ) : label}
-              </h3>
-              <div className="space-y-3">
-                {dayMatches.map((m, i) => (
-                  <MatchCard
-                    key={m.id} match={m} index={i}
-                    userBet={bets.find(b => b.matchId === m.id && b.userId === userId)}
-                    onClick={() => setActiveMatch(m)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : nextMatch ? (
-        <div className="px-4 mt-4 space-y-4">
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No games in the next 2 days. Next match:</p>
-          <MatchCard match={nextMatch}
-            userBet={bets.find(b => b.matchId === nextMatch.id && b.userId === userId)}
-            onClick={() => setActiveMatch(nextMatch)} />
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center px-8 py-16 text-center">
-          <span className="text-5xl mb-4">🏆</span>
-          <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>World Cup done!</h3>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Check the leaderboard.</p>
-        </div>
-      )}
+
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-2xl shimmer" />)}
+          </div>
+        ) : matches.length > 0 ? (
+          <div className="space-y-3 pb-2">
+            {matches.map((m, i) => (
+              <MatchCard
+                key={m.id} match={m} index={i}
+                userBet={bets.find(b => b.matchId === m.id && b.userId === userId)}
+                onClick={() => setActiveMatch(m)}
+              />
+            ))}
+          </div>
+        ) : nextMatch ? (
+          <div className="space-y-3 pb-2">
+            <MatchCard match={nextMatch}
+              userBet={bets.find(b => b.matchId === nextMatch.id && b.userId === userId)}
+              onClick={() => setActiveMatch(nextMatch)} />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <span className="text-4xl mb-3">🏆</span>
+            <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>World Cup done!</p>
+          </div>
+        )}
+      </div>
 
       <BetSheet
         match={activeMatch} bets={bets} currentUserId={userId}
