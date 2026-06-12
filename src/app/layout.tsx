@@ -40,7 +40,7 @@ export default function RootLayout({
           <OnboardingOverlay />
           <div className="flex flex-col min-h-dvh">
             <Header />
-            <main className="flex-1 pb-24 pt-12">
+            <main className="flex-1" style={{ paddingTop: 'calc(3rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
               {children}
             </main>
             <BottomNav />
