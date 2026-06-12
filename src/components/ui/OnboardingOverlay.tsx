@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, Target, Check, X } from 'lucide-react'
+import { ChevronRight, Target, Check, X, CheckCircle2 } from 'lucide-react'
 import { useUser } from '@/components/providers/UserProvider'
 import { usePlayers } from '@/components/providers/PlayersProvider'
+import { Avatar } from '@/components/ui/Avatar'
 import { GROUP_STAGE_MATCHES } from '@/data/schedule'
 import { supabase } from '@/lib/supabase'
 import { saveFavoriteTeam } from '@/lib/favorites'
@@ -87,18 +88,47 @@ function MiniBet({ match, userId }: { match: Match; userId: string }) {
 
 // ── Main overlay ────────────────────────────────────────────────────────────
 export function OnboardingOverlay() {
-  const { userId, isLoggedIn } = useUser()
+  const { userId, setUserId } = useUser()
   const { players } = usePlayers()
   const user = players.find(p => p.id === userId)
 
   const [visible, setVisible] = useState(false)
   const [step, setStep] = useState(0)
+  const [initialStep, setInitialStep] = useState(0)
   const [favCode, setFavCode] = useState('')
+  const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set())
+  const [pickingId, setPickingId] = useState<string | null>(null)
 
+  // Load claimed players from Supabase
   useEffect(() => {
-    if (!isLoggedIn || !userId) return
-    if (!localStorage.getItem(DONE_KEY(userId))) setVisible(true)
-  }, [isLoggedIn, userId])
+    const load = async () => {
+      try {
+        const { data } = await supabase.from('users').select('id, claimed')
+        if (data) {
+          setClaimedIds(new Set(
+            data
+              .filter((u: Record<string, unknown>) => u.claimed)
+              .map((u: Record<string, unknown>) => u.id as string)
+          ))
+        }
+      } catch { /* graceful: no claimed column yet, treat all as available */ }
+    }
+    load()
+  }, [])
+
+  // Determine visibility on mount — check localStorage directly to avoid race with UserProvider
+  useEffect(() => {
+    const storedId = localStorage.getItem('bfg_user_id')
+    if (!storedId) {
+      setInitialStep(0)
+      setStep(0)
+      setVisible(true)
+    } else if (!localStorage.getItem(DONE_KEY(storedId))) {
+      setInitialStep(1)
+      setStep(1)
+      setVisible(true)
+    }
+  }, [])
 
   const allTeams = useMemo(() => {
     const map = new Map<string, { name: string; code: string; flag: string }>()
@@ -110,26 +140,39 @@ export function OnboardingOverlay() {
   }, [])
 
   const upcomingMatches = useMemo(() =>
-    GROUP_STAGE_MATCHES
-      .filter(m => isBettingOpen(m.kickoffUtc))
-      .slice(0, 3)
+    GROUP_STAGE_MATCHES.filter(m => isBettingOpen(m.kickoffUtc)).slice(0, 3)
   , [])
 
   const finish = () => {
-    if (userId) localStorage.setItem(DONE_KEY(userId), '1')
+    const id = userId ?? localStorage.getItem('bfg_user_id')
+    if (id) localStorage.setItem(DONE_KEY(id), '1')
     setVisible(false)
+  }
+
+  const handlePickPlayer = async (playerId: string) => {
+    if (pickingId || claimedIds.has(playerId)) return
+    setPickingId(playerId)
+    try {
+      await supabase.from('users').update({ claimed: true }).eq('id', playerId)
+    } catch { /* ignore — still proceed locally */ }
+    setUserId(playerId)
+    setClaimedIds(prev => new Set([...prev, playerId]))
+    setPickingId(null)
+    setStep(1)
   }
 
   const handleFavPick = (code: string) => {
     setFavCode(code)
-    if (userId) {
-      saveFavoriteTeam(userId, code, (c) => {
-        supabase.from('users').update({ favorite_team: c }).eq('id', userId).then(() => {})
+    const id = userId
+    if (id) {
+      saveFavoriteTeam(id, code, (c) => {
+        supabase.from('users').update({ favorite_team: c }).eq('id', id).then(() => {})
       })
     }
   }
 
-  const stepCount = 3
+  const totalSteps = initialStep === 0 ? 4 : 3
+  const progressCurrent = step - initialStep
 
   return (
     <AnimatePresence>
@@ -156,24 +199,27 @@ export function OnboardingOverlay() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-2 flex-shrink-0">
               <div className="flex gap-1.5">
-                {Array.from({ length: stepCount }).map((_, i) => (
+                {Array.from({ length: totalSteps }).map((_, i) => (
                   <div key={i} className="rounded-full transition-all duration-300"
                     style={{
-                      width: i === step ? 20 : 6, height: 6,
-                      backgroundColor: i <= step ? '#FFD60A' : 'var(--border)',
+                      width: i === progressCurrent ? 20 : 6, height: 6,
+                      backgroundColor: i <= progressCurrent ? '#FFD60A' : 'var(--border)',
                     }} />
                 ))}
               </div>
-              <button onClick={finish} className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-tertiary)' }}>
-                <X size={14} />
-              </button>
+              {step > 0 && (
+                <button onClick={finish} className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-tertiary)' }}>
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-5 pb-4">
               <AnimatePresence mode="wait">
-                {/* ── Step 0: Pick your team ── */}
+
+                {/* ── Step 0: Who are you? ── */}
                 {step === 0 && (
                   <motion.div key="s0"
                     initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }}
@@ -181,8 +227,63 @@ export function OnboardingOverlay() {
                     className="space-y-4 pt-2"
                   >
                     <div className="text-center">
+                      <div className="text-4xl mb-3">👋</div>
+                      <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                        Who are you?
+                      </h2>
+                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        Pick your name — once claimed, it's yours.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {players.map(p => {
+                        const isClaimed = claimedIds.has(p.id)
+                        const isLoading = pickingId === p.id
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => handlePickPlayer(p.id)}
+                            disabled={isClaimed || !!pickingId}
+                            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all active:scale-[0.98]"
+                            style={{
+                              backgroundColor: 'var(--bg-card)',
+                              border: `2px solid ${isClaimed ? 'transparent' : 'var(--border)'}`,
+                              opacity: isClaimed ? 0.45 : 1,
+                              cursor: isClaimed ? 'default' : 'pointer',
+                            }}
+                          >
+                            <Avatar name={p.name} color={p.color} avatarUrl={p.avatarUrl} size="md" />
+                            <span className="flex-1 text-left text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                              {p.name}
+                            </span>
+                            {isClaimed ? (
+                              <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
+                                style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-tertiary)' }}>
+                                <CheckCircle2 size={12} /> Taken
+                              </span>
+                            ) : isLoading ? (
+                              <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>…</span>
+                            ) : (
+                              <div className="w-5 h-5 rounded-full border-2 flex-shrink-0"
+                                style={{ borderColor: p.color }} />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* ── Step 1: Pick your team ── */}
+                {step === 1 && (
+                  <motion.div key="s1"
+                    initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    className="space-y-4 pt-2"
+                  >
+                    <div className="text-center">
                       <div className="text-4xl mb-3">🏆</div>
-                      <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                      <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
                         Welcome{user ? `, ${user.name}` : ''}!
                       </h2>
                       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -211,16 +312,16 @@ export function OnboardingOverlay() {
                   </motion.div>
                 )}
 
-                {/* ── Step 1: Place first bets ── */}
-                {step === 1 && (
-                  <motion.div key="s1"
+                {/* ── Step 2: Place first bets ── */}
+                {step === 2 && (
+                  <motion.div key="s2"
                     initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                     className="space-y-3 pt-2"
                   >
                     <div className="text-center">
                       <div className="text-4xl mb-3">⚽</div>
-                      <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                      <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
                         Place your first bet!
                       </h2>
                       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -239,16 +340,16 @@ export function OnboardingOverlay() {
                   </motion.div>
                 )}
 
-                {/* ── Step 2: How scoring works ── */}
-                {step === 2 && (
-                  <motion.div key="s2"
+                {/* ── Step 3: How scoring works ── */}
+                {step === 3 && (
+                  <motion.div key="s3"
                     initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                     className="space-y-4 pt-2"
                   >
                     <div className="text-center">
                       <div className="mb-3"><Target size={40} className="mx-auto text-yellow-400" /></div>
-                      <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>How scoring works</h2>
+                      <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>How scoring works</h2>
                       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         The sharper your prediction, the more points you earn.
                       </p>
@@ -272,25 +373,28 @@ export function OnboardingOverlay() {
                     </div>
                   </motion.div>
                 )}
+
               </AnimatePresence>
             </div>
 
-            {/* Footer */}
-            <div className="px-5 pb-6 pt-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
-              <button
-                onClick={() => {
-                  if (step < stepCount - 1) setStep(s => s + 1)
-                  else finish()
-                }}
-                disabled={step === 0 && !favCode}
-                className="w-full py-4 rounded-full text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-97 disabled:opacity-40"
-                style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}
-              >
-                {step === 0 && !favCode ? 'Pick a team to continue'
-                  : step < stepCount - 1 ? <><span>Next</span><ChevronRight size={16} /></>
-                  : "Let's go! ⚽"}
-              </button>
-            </div>
+            {/* Footer — only shown from step 1 onwards */}
+            {step > 0 && (
+              <div className="px-5 pb-6 pt-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => {
+                    if (step < 3) setStep(s => s + 1)
+                    else finish()
+                  }}
+                  disabled={step === 1 && !favCode}
+                  className="w-full py-4 rounded-full text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-97 disabled:opacity-40"
+                  style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}
+                >
+                  {step === 1 && !favCode ? 'Pick a team to continue'
+                    : step < 3 ? <><span>Next</span><ChevronRight size={16} /></>
+                    : "Let's go! ⚽"}
+                </button>
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}
