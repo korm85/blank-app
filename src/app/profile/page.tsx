@@ -4,30 +4,41 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import { Mail, MessageCircle, Save, Check, LogOut } from 'lucide-react'
 import { UserSelector } from '@/components/ui/UserSelector'
 import { useUser } from '@/components/providers/UserProvider'
+import { usePlayers } from '@/components/providers/PlayersProvider'
 import { Avatar } from '@/components/ui/Avatar'
 import { supabase } from '@/lib/supabase'
-import { STATIC_USERS, getUserById } from '@/lib/users'
 import { GROUP_STAGE_MATCHES } from '@/data/schedule'
-import { getBetResultLabel } from '@/lib/scoring'
-import type { Bet, BetResult } from '@/types'
-import { LogOut } from 'lucide-react'
+import type { Bet } from '@/types'
+
+const NOTIF_KEY = (id: string) => `bfg_notif_${id}`
 
 export default function ProfilePage() {
   const { userId, isLoggedIn, setUserId } = useUser()
+  const { players, refreshPlayers } = usePlayers()
   const [bets, setBets] = useState<Bet[]>([])
   const [loading, setLoading] = useState(true)
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [notifSaved, setNotifSaved] = useState(false)
+
+  const user = players.find(p => p.id === userId)
 
   const load = useCallback(async () => {
     if (!userId) return
+    // Load notification prefs from localStorage
+    const stored = JSON.parse(localStorage.getItem(NOTIF_KEY(userId)) || '{}')
+    setEmail(stored.email || '')
+    setPhone(stored.phone || '')
+
     try {
       const { data } = await supabase
         .from('bets')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-
       if (data) {
         setBets(data.map((b: Record<string, unknown>) => ({
           id: b.id as string,
@@ -45,9 +56,16 @@ export default function ProfilePage() {
 
   useEffect(() => { load() }, [load])
 
-  if (!isLoggedIn) return <UserSelector />
+  const saveNotifications = () => {
+    if (!userId) return
+    localStorage.setItem(NOTIF_KEY(userId), JSON.stringify({ email: email.trim(), phone: phone.trim() }))
+    // Best-effort DB sync (requires email/phone columns to exist)
+    supabase.from('users').update({ email: email.trim() || null, phone: phone.trim() || null }).eq('id', userId).then(() => {})
+    setNotifSaved(true)
+    setTimeout(() => setNotifSaved(false), 2500)
+  }
 
-  const user = getUserById(userId!)
+  if (!isLoggedIn) return <UserSelector />
   if (!user) return null
 
   const gradedBets = bets.filter(b => b.pointsEarned !== null)
@@ -62,8 +80,10 @@ export default function ProfilePage() {
     { label: 'Correct Results', value: correctResults, color: '#FF9F0A' },
   ]
 
+  const otherPlayers = players.filter(p => p.id !== userId)
+
   return (
-    <div className="min-h-dvh px-4 py-4">
+    <div className="min-h-dvh px-4 py-4" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Profile header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -78,9 +98,7 @@ export default function ProfilePage() {
         <h2 className="text-2xl font-bold mt-4 mb-1" style={{ color: 'var(--text-primary)' }}>
           {user.name}
         </h2>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          World Cup 2026
-        </p>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>World Cup 2026</p>
       </motion.div>
 
       {/* Stats grid */}
@@ -102,26 +120,113 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Switch user */}
-      <div className="space-y-2 mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
-          Switch Player
+      {/* Notifications */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="mb-6 p-4 rounded-3xl"
+        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      >
+        <p className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+          Notifications
         </p>
-        {STATIC_USERS.filter(u => u.id !== userId).map((u, i) => (
-          <motion.button
-            key={u.id}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 + i * 0.05 }}
-            onClick={() => setUserId(u.id)}
-            className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all active:scale-98"
-            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
-          >
-            <Avatar name={u.name} color={u.color} size="sm" />
-            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{u.name}</span>
-          </motion.button>
-        ))}
-      </div>
+
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'var(--bg-card-2)' }}>
+              <Mail size={16} style={{ color: 'var(--text-secondary)' }} />
+            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Email for reminders (optional)"
+              className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{
+                backgroundColor: 'var(--bg-card-2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'var(--bg-card-2)' }}>
+              <MessageCircle size={16} style={{ color: 'var(--text-secondary)' }} />
+            </div>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+1234567890 for WhatsApp"
+              className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{
+                backgroundColor: 'var(--bg-card-2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+        </div>
+
+        <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Get reminders 1 hour before games and score updates when matches finish.
+        </p>
+
+        <button
+          onClick={saveNotifications}
+          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98"
+          style={{ backgroundColor: notifSaved ? '#30D158' : '#FFD60A', color: '#0D0D0F' }}
+        >
+          {notifSaved ? <><Check size={16} /> Saved!</> : <><Save size={16} /> Save</>}
+        </button>
+      </motion.div>
+
+      {/* Switch player */}
+      {otherPlayers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="mb-6"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
+            Switch Player
+          </p>
+          <div className="space-y-2">
+            {otherPlayers.map((u, i) => (
+              <motion.button
+                key={u.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.45 + i * 0.04 }}
+                onClick={() => setUserId(u.id)}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all active:scale-98"
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              >
+                <Avatar name={u.name} color={u.color} size="sm" />
+                <span className="text-sm font-medium flex-1 text-left" style={{ color: 'var(--text-primary)' }}>{u.name}</span>
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Sign out */}
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        onClick={() => { localStorage.removeItem('bfg_user_id'); setUserId('') }}
+        className="w-full py-3 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 mb-8"
+        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+      >
+        <LogOut size={15} />
+        Sign out
+      </motion.button>
     </div>
   )
 }
