@@ -1,10 +1,10 @@
 export const runtime = 'nodejs'
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-const WEBHOOK_URL = 'https://blank-app-korm85s-projects.vercel.app/api/whatsapp'
+const BASE_WEBHOOK_URL = 'https://blank-app-korm85s-projects.vercel.app/api/whatsapp'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const id = process.env.green_api_id ?? process.env.GREEN_API_ID
   const token = process.env.green_api_token ?? process.env.GREEN_API_TOKEN
 
@@ -12,8 +12,19 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: 'green_api_id / green_api_token env vars missing' })
   }
 
+  // Allow passing a Vercel Protection Bypass token so Green API can reach the webhook
+  // through Vercel's Deployment Protection (SSO).
+  // Get yours: Vercel → Project → Settings → Deployment Protection → Protection Bypass for Automation
+  const bypass = new URL(req.url).searchParams.get('bypass')
+  const WEBHOOK_URL = bypass
+    ? `${BASE_WEBHOOK_URL}?x-vercel-protection-bypass=${bypass}`
+    : BASE_WEBHOOK_URL
+
   const base = `https://api.green-api.com/waInstance${id}`
-  const steps: Record<string, unknown> = {}
+  const steps: Record<string, unknown> = {
+    webhookUrl: WEBHOOK_URL,
+    bypassTokenProvided: !!bypass,
+  }
 
   // Step 1: Re-register webhook settings
   try {
@@ -68,6 +79,8 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     steps,
-    next: 'Wait ~30 seconds for the instance to fully reboot, then send !ping in the group.',
+    next: bypass
+      ? 'Wait ~30 seconds for the instance to fully reboot, then send !ping in the group.'
+      : '⚠️ No bypass token provided. If Vercel Authentication is blocking requests, re-run with ?bypass=TOKEN. Get the token from: Vercel → Project → Settings → Deployment Protection → Protection Bypass for Automation.',
   })
 }
