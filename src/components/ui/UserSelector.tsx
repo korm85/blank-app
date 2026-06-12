@@ -158,7 +158,7 @@ export function UserSelector() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setAdding(false); setName(''); setError('') }}
-                      className="flex-1 py-3 rounded-xl text-sm font-medium"
+                      className="flex-1 py-4 rounded-full text-sm font-semibold"
                       style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)' }}
                     >
                       Cancel
@@ -166,7 +166,7 @@ export function UserSelector() {
                     <button
                       onClick={handleAdd}
                       disabled={!name.trim() || saving}
-                      className="flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="flex-1 py-4 rounded-full text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                       style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}
                     >
                       {saving ? <Loader2 size={16} className="animate-spin" /> : 'Join'}

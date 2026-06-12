@@ -111,42 +111,46 @@ export function ScorePicker({ match, existingBet, onBetPlaced }: ScorePickerProp
       {open ? (
         <>
           {/* Numpad */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5">
             {[7, 8, 9, 4, 5, 6, 1, 2, 3].map(d => (
               <motion.button
                 key={d}
-                whileTap={{ scale: 0.88 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => press(d)}
-                className="h-14 rounded-2xl text-2xl font-bold"
+                className="h-16 rounded-2xl text-2xl font-semibold"
                 style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
               >
                 {d}
               </motion.button>
             ))}
             <motion.button
-              whileTap={{ scale: 0.88 }}
+              whileTap={{ scale: 0.9 }}
               onClick={del}
-              className="h-14 rounded-2xl flex items-center justify-center"
+              className="h-16 rounded-2xl flex items-center justify-center"
               style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}
             >
               <Delete size={22} />
             </motion.button>
             <motion.button
-              whileTap={{ scale: 0.88 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => press(0)}
-              className="h-14 rounded-2xl text-2xl font-bold"
+              className="h-16 rounded-2xl text-2xl font-semibold"
               style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
             >
               0
             </motion.button>
             <motion.button
-              whileTap={{ scale: 0.88 }}
+              whileTap={{ scale: 0.9 }}
               onClick={submit}
               disabled={loading || saved}
-              className="h-14 rounded-2xl text-base font-bold transition-colors disabled:opacity-60"
-              style={{ backgroundColor: saved ? 'var(--bg-card)' : '#FFD60A', color: saved ? 'var(--text-secondary)' : '#0D0D0F' }}
+              className="h-16 rounded-2xl text-base font-bold transition-all disabled:opacity-60"
+              style={{
+                backgroundColor: saved ? 'rgba(48,209,88,0.15)' : '#FFD60A',
+                color: saved ? '#30D158' : '#0D0D0F',
+                border: saved ? '1.5px solid #30D158' : 'none',
+              }}
             >
-              {loading ? '…' : saved ? '✓' : 'Save'}
+              {loading ? '…' : saved ? '✓ Saved' : 'Save'}
             </motion.button>
           </div>
           {error && <p className="text-center text-xs text-red-400">{error}</p>}

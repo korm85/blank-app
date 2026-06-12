@@ -213,30 +213,30 @@ export default function ProfilePage() {
         {/* Save contact info */}
         <button
           onClick={saveNotifications}
-          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3"
+          className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3"
           style={{ backgroundColor: notifSaved ? '#30D158' : '#FFD60A', color: '#0D0D0F' }}
         >
-          {notifSaved ? <><Check size={16} /> Saved!</> : <><Save size={16} /> Save</>}
+          {notifSaved ? <><Check size={16} /> Saved!</> : <><Save size={16} /> Save notifications</>}
         </button>
 
         {/* Browser push notifications */}
         <button
           onClick={pushPermission === 'granted' ? undefined : enablePush}
           disabled={pushPermission === 'unsupported' || pushPermission === 'denied'}
-          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3 disabled:opacity-40"
+          className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3 disabled:opacity-40"
           style={{
             backgroundColor: pushPermission === 'granted' ? 'rgba(48,209,88,0.15)' : 'var(--bg-card-2)',
-            border: `1px solid ${pushPermission === 'granted' ? '#30D158' : 'var(--border)'}`,
+            border: `1.5px solid ${pushPermission === 'granted' ? '#30D158' : 'var(--border)'}`,
             color: pushPermission === 'granted' ? '#30D158' : 'var(--text-primary)',
           }}
         >
           {pushPermission === 'granted'
-            ? <><Bell size={16} /> Browser notifications ON</>
+            ? <><Bell size={16} /> Push notifications on</>
             : pushPermission === 'denied'
-            ? <><BellOff size={16} /> Notifications blocked (enable in browser settings)</>
+            ? <><BellOff size={16} /> Blocked — enable in phone settings</>
             : pushPermission === 'unsupported'
             ? <><BellOff size={16} /> Notifications not supported</>
-            : <><Bell size={16} /> Enable browser notifications</>}
+            : <><Bell size={16} /> Enable push notifications</>}
         </button>
 
         {/* Test email (only shown when email is saved) */}
@@ -244,13 +244,13 @@ export default function ProfilePage() {
           <button
             onClick={sendTestEmail}
             disabled={testEmailState === 'sending'}
-            className="w-full py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-50"
-            style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)', border: '1.5px solid var(--border)' }}
           >
             {testEmailState === 'sending' ? '…Sending'
               : testEmailState === 'sent' ? '✅ Test email sent!'
               : testEmailState === 'error' ? '⚠️ Email not configured yet'
-              : <><Mail size={14} /> Send test email to {email.trim()}</>}
+              : <><Mail size={14} /> Send test email</>}
           </button>
         )}
 
@@ -292,8 +292,8 @@ export default function ProfilePage() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0 }}
         onClick={() => { localStorage.removeItem('bfg_user_id'); setUserId('') }}
-        className="w-full py-3 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 mb-8"
-        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+        className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 mb-8"
+        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1.5px solid var(--border)' }}
       >
         <LogOut size={15} />
         Sign out
