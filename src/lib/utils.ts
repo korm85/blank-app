@@ -6,9 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function isBettingOpen(kickoffUtc: string): boolean {
-  const kickoff = new Date(kickoffUtc)
-  const cutoff = new Date(kickoff.getTime() + 5 * 60 * 1000)
-  return new Date() < cutoff
+  return new Date() < new Date(kickoffUtc)
 }
 
 export function isToday(dateUtc: string): boolean {

@@ -38,7 +38,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex flex-col min-h-dvh">
             <Header />
-            <main className="flex-1 pb-24 pt-16">
+            <main className="flex-1 pb-24 pt-12">
               {children}
             </main>
             <BottomNav />
