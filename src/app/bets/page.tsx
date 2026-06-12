@@ -11,8 +11,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import { useUser } from '@/components/providers/UserProvider'
 import { usePlayers } from '@/components/providers/PlayersProvider'
 import { supabase } from '@/lib/supabase'
-import { getUpcomingDaysMatches } from '@/data/schedule'
-import { formatKickoff, isBettingOpen } from '@/lib/utils'
+import { GROUP_STAGE_MATCHES } from '@/data/schedule'
+import { formatKickoff, isBettingOpen, formatMatchDate } from '@/lib/utils'
 import type { Bet, Match } from '@/types'
 
 function resultStyle(pts: number | null) {
@@ -31,26 +31,25 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(true)
   const [activeMatch, setActiveMatch] = useState<Match | null>(null)
 
-  const load = useCallback(async () => {
-    const todayMatches = getUpcomingDaysMatches(0)
+  // Show all remaining matches from today onward
+  const allUpcoming = GROUP_STAGE_MATCHES.filter(
+    m => new Date(m.kickoffUtc) >= new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z')
+  )
 
+  const load = useCallback(async () => {
     try {
       const { data: dbMatches } = await supabase
-        .from('matches').select('*').in('id', todayMatches.map(m => m.id))
-      if (dbMatches && dbMatches.length > 0) {
-        setMatches(todayMatches.map(m => {
-          const db = dbMatches.find((d: Record<string, unknown>) => d.id === m.id)
-          if (!db) return m
-          return { ...m, homeScore: db.home_score ?? null, awayScore: db.away_score ?? null, status: db.status ?? m.status }
-        }))
-      } else {
-        setMatches(todayMatches)
-      }
-    } catch { setMatches(todayMatches) }
+        .from('matches').select('*').in('id', allUpcoming.map(m => m.id))
+      setMatches(allUpcoming.map(m => {
+        const db = (dbMatches ?? []).find((d: Record<string, unknown>) => d.id === m.id)
+        if (!db) return m
+        return { ...m, homeScore: db.home_score ?? null, awayScore: db.away_score ?? null, status: db.status ?? m.status }
+      }))
+    } catch { setMatches(allUpcoming) }
 
-    if (todayMatches.length > 0) {
+    if (allUpcoming.length > 0) {
       try {
-        const { data } = await supabase.from('bets').select('*').in('match_id', todayMatches.map(m => m.id))
+        const { data } = await supabase.from('bets').select('*')
         if (data) {
           setBets(data.map((b: Record<string, unknown>) => ({
             id: b.id as string, userId: b.user_id as string, matchId: b.match_id as string,
@@ -61,19 +60,29 @@ export default function MatchesPage() {
       } catch { /* ignore */ }
     }
     setLoading(false)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
 
   if (!isLoggedIn) return <UserSelector />
 
+  // Group matches by date
+  const grouped: Record<string, Match[]> = {}
+  for (const m of matches) {
+    const key = m.kickoffUtc.split('T')[0]
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(m)
+  }
+  const groups = Object.entries(grouped).map(([date, ms]) => ({
+    date, label: formatMatchDate(ms[0].kickoffUtc), matches: ms,
+  }))
+  const today = new Date().toISOString().split('T')[0]
+
   return (
     <div className="min-h-dvh px-4 py-4" style={{ backgroundColor: 'var(--bg)' }}>
-      <h2 className="text-xl font-bold mb-0.5" style={{ color: 'var(--text-primary)' }}>
-        Today&apos;s Matches
-      </h2>
-      <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
-        {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+      <h2 className="text-xl font-bold mb-0.5" style={{ color: 'var(--text-primary)' }}>Matches</h2>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+        World Cup 2026 — Group Stage
       </p>
 
       {/* Alert banner for matches closing within 60 min */}
@@ -96,15 +105,24 @@ export default function MatchesPage() {
         <div className="space-y-4">
           {[1, 2].map(i => <div key={i} className="h-44 rounded-3xl shimmer" />)}
         </div>
-      ) : matches.length === 0 ? (
+      ) : groups.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <span className="text-4xl mb-3">🗓</span>
-          <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>No games today</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Head to Home for upcoming matches</p>
+          <span className="text-4xl mb-3">🏆</span>
+          <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>All matches played!</p>
         </div>
       ) : (
-        <div className="space-y-5">
-          {matches.map((match, mi) => {
+        <div className="space-y-6">
+          {groups.map(({ date, label, matches: dayMatches }) => (
+          <div key={date}>
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2"
+              style={{ color: 'var(--text-secondary)' }}>
+              {date === today ? (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
+                  style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}>Today</span>
+              ) : label}
+            </h3>
+          <div className="space-y-5">
+          {dayMatches.map((match, mi) => {
             const matchBets = bets.filter(b => b.matchId === match.id)
             const myBet = matchBets.find(b => b.userId === userId)
             const open = isBettingOpen(match.kickoffUtc)
@@ -258,6 +276,9 @@ export default function MatchesPage() {
               </div>
             )
           })}
+          </div>
+          </div>
+          ))}
         </div>
       )}
 

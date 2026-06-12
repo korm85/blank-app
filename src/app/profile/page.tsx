@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, MessageCircle, Save, Check, LogOut, Bell, BellOff } from 'lucide-react'
+import { Mail, MessageCircle, Save, Check, LogOut, Bell, BellOff, Camera } from 'lucide-react'
 import { UserSelector } from '@/components/ui/UserSelector'
 import { useUser } from '@/components/providers/UserProvider'
 import { usePlayers } from '@/components/providers/PlayersProvider'
@@ -25,6 +25,9 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('')
   const [notifSaved, setNotifSaved] = useState(false)
   const [favTeam, setFavTeamState] = useState('')
+  const [avatarUrl, setAvatarUrlState] = useState('')
+  const [editingAvatar, setEditingAvatar] = useState(false)
+  const [avatarSaved, setAvatarSaved] = useState(false)
   const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
@@ -37,6 +40,7 @@ export default function ProfilePage() {
     setEmail(stored.email || '')
     setPhone(stored.phone || '')
     setFavTeamState(getFavoriteTeamCode(userId))
+    setAvatarUrlState(user?.avatarUrl ?? '')
 
     try {
       const { data } = await supabase
@@ -93,6 +97,15 @@ export default function ProfilePage() {
     setTimeout(() => setTestEmailState('idle'), 3000)
   }
 
+  const saveAvatar = async () => {
+    if (!userId) return
+    await supabase.from('users').update({ avatar_url: avatarUrl.trim() || null }).eq('id', userId)
+    await refreshPlayers()
+    setAvatarSaved(true)
+    setEditingAvatar(false)
+    setTimeout(() => setAvatarSaved(false), 2000)
+  }
+
   const saveNotifications = () => {
     if (!userId) return
     localStorage.setItem(NOTIF_KEY(userId), JSON.stringify({ email: email.trim(), phone: phone.trim() }))
@@ -131,7 +144,33 @@ export default function ProfilePage() {
           border: `1px solid ${user.color}30`,
         }}
       >
-        <Avatar name={user.name} color={user.color} avatarUrl={user.avatarUrl} size="xl" />
+        <div className="relative">
+          <Avatar name={user.name} color={user.color} avatarUrl={user.avatarUrl} size="xl" />
+          <button
+            onClick={() => setEditingAvatar(v => !v)}
+            className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}
+          >
+            <Camera size={14} />
+          </button>
+        </div>
+        {editingAvatar && (
+          <div className="mt-3 w-full px-4 flex gap-2">
+            <input
+              type="url"
+              value={avatarUrl}
+              onChange={e => setAvatarUrlState(e.target.value)}
+              placeholder="Paste image URL…"
+              className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: 'var(--bg-card-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+            <button onClick={saveAvatar}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold"
+              style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}>
+              {avatarSaved ? '✓' : 'Save'}
+            </button>
+          </div>
+        )}
         <h2 className="text-2xl font-bold mt-4 mb-1" style={{ color: 'var(--text-primary)' }}>
           {user.name}
         </h2>
