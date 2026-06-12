@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleCommand(text: string, chatId: string, senderName: string): Promise<string> {
+  if (text === '!ping') {
+    return `🏓 Pong! Bot is alive. Chat ID: ${chatId}`
+  }
+
   if (text === '!help') {
     return (
       '⚽ *Boys For Goals — Commands*\n\n' +
@@ -54,6 +58,7 @@ async function handleCommand(text: string, chatId: string, senderName: string): 
       '!scores — today\'s matches\n' +
       '!mybets — your bets today\n' +
       '!setup — show this chat\'s ID\n' +
+      '!ping — check bot is alive\n' +
       '!help — this message'
     )
   }
