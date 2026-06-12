@@ -7,14 +7,9 @@ export const runtime = 'nodejs'
 // Called by Vercel Cron daily at 08:00 UTC.
 // Also callable with ?test=1&email=you@example.com for a test send.
 export async function GET(req: Request) {
-  const apiKey = process.env.RESEND_API_KEY
+  const apiKey = process.env.resend_api
   if (!apiKey) {
-    const resendKeys = Object.keys(process.env).filter(k => k.toLowerCase().includes('resend'))
-    return Response.json({
-      ok: false,
-      error: 'RESEND_API_KEY not set — add it in Vercel env vars',
-      hint: resendKeys.length > 0 ? `Found similar keys: ${resendKeys.join(', ')}` : 'No RESEND keys found in env',
-    }, { status: 503 })
+    return Response.json({ ok: false, error: 'resend_api not set — add it in Vercel env vars' }, { status: 503 })
   }
 
   const url = new URL(req.url)
