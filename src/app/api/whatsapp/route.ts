@@ -79,6 +79,10 @@ export async function POST(req: NextRequest) {
 async function handleCommand(text: string, chatId: string, senderName: string): Promise<string> {
   if (text === '!ping') return `🏓 Pong! Bot is alive. Chat ID: ${chatId}`
 
+  if (text === '!setup') {
+    return `🔧 Chat ID: ${chatId}\n\nAdd this as the GREEN_API_CHAT env var in Vercel.`
+  }
+
   if (text === '!help') {
     return (
       '⚽ *Boys For Goals — Commands*\n\n' +
