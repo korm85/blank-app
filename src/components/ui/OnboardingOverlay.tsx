@@ -34,16 +34,16 @@ function MiniBet({ match, userId }: { match: Match; userId: string }) {
     <div className="flex items-center gap-2">
       <button
         onClick={() => { onChange(Math.max(0, value - 1)); setSaved(false) }}
-        className="w-8 h-8 rounded-full text-lg font-bold flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)' }}
+        className="w-11 h-11 rounded-full text-xl font-bold flex items-center justify-center active:scale-90 transition-transform"
+        style={{ backgroundColor: 'rgba(255,23,68,0.18)', color: '#FF1744', border: '2px solid rgba(255,23,68,0.4)' }}
       >−</button>
-      <span className="text-2xl font-black tabular-nums w-6 text-center" style={{ color: 'var(--text-primary)' }}>
+      <span className="text-3xl font-black tabular-nums w-8 text-center" style={{ color: 'var(--text-primary)' }}>
         {value}
       </span>
       <button
         onClick={() => { onChange(value + 1); setSaved(false) }}
-        className="w-8 h-8 rounded-full text-lg font-bold flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)' }}
+        className="w-11 h-11 rounded-full text-xl font-bold flex items-center justify-center active:scale-90 transition-transform"
+        style={{ backgroundColor: 'rgba(0,230,118,0.18)', color: '#00E676', border: '2px solid rgba(0,230,118,0.4)' }}
       >+</button>
     </div>
   )
@@ -71,12 +71,12 @@ function MiniBet({ match, userId }: { match: Match; userId: string }) {
       </div>
       <button
         onClick={save}
-        disabled={saving || saved}
-        className="w-full py-2.5 rounded-full text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-70 transition-all"
+        disabled={saving}
+        className="w-full py-3.5 rounded-full text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-70 transition-all active:scale-97"
         style={{
-          backgroundColor: saved ? 'rgba(48,209,88,0.15)' : '#FFD60A',
-          color: saved ? '#30D158' : '#0D0D0F',
-          border: saved ? '1.5px solid #30D158' : 'none',
+          backgroundColor: saved ? 'rgba(0,230,118,0.18)' : '#FFD60A',
+          color: saved ? '#00E676' : '#0A0B12',
+          border: saved ? '2px solid rgba(0,230,118,0.5)' : '2px solid transparent',
         }}
       >
         {saved ? <><Check size={14} /> Bet saved!</> : saving ? '…' : 'Save bet'}
