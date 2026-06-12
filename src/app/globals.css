@@ -21,6 +21,7 @@
   --color-border-light: rgba(0,0,0,0.08);
 }
 
+/* Light mode — default */
 :root {
   --bg: #F0F2FA;
   --bg-card: #FFFFFF;
@@ -33,16 +34,19 @@
   --bottom-nav-bg: rgba(240,242,250,0.92);
 }
 
-.dark {
-  --bg: #0A0B12;
-  --bg-card: #13141F;
-  --bg-card-2: #1C1E2D;
-  --text-primary: #FFFFFF;
-  --text-secondary: #8892B4;
-  --text-tertiary: #4A5270;
-  --border: rgba(255,255,255,0.12);
-  --shadow: 0 4px 24px rgba(0,0,0,0.7);
-  --bottom-nav-bg: rgba(10,11,18,0.96);
+/* Dark mode — follows phone system setting automatically */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161822;
+    --bg-card: #1F2132;
+    --bg-card-2: #272A3E;
+    --text-primary: #FFFFFF;
+    --text-secondary: #8892B4;
+    --text-tertiary: #4A5270;
+    --border: rgba(255,255,255,0.12);
+    --shadow: 0 4px 24px rgba(0,0,0,0.7);
+    --bottom-nav-bg: rgba(22,24,34,0.96);
+  }
 }
 
 * {
