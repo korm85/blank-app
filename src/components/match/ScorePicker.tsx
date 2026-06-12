@@ -115,46 +115,45 @@ export function ScorePicker({ match, existingBet, onBetPlaced }: ScorePickerProp
             {[7, 8, 9, 4, 5, 6, 1, 2, 3].map(d => (
               <motion.button
                 key={d}
-                whileTap={{ scale: 0.9 }}
+                whileTap={{ scale: 0.88 }}
                 onClick={() => press(d)}
-                className="h-16 rounded-2xl text-2xl font-semibold"
-                style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                className="h-16 rounded-2xl text-2xl font-bold"
+                style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-primary)' }}
               >
                 {d}
               </motion.button>
             ))}
             <motion.button
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.88 }}
               onClick={del}
               className="h-16 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+              style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)' }}
             >
               <Delete size={22} />
             </motion.button>
             <motion.button
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.88 }}
               onClick={() => press(0)}
-              className="h-16 rounded-2xl text-2xl font-semibold"
-              style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
+              className="h-16 rounded-2xl text-2xl font-bold"
+              style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-primary)' }}
             >
               0
             </motion.button>
             <motion.button
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.88 }}
               onClick={submit}
-              disabled={loading || saved}
-              className="h-16 rounded-2xl text-base font-bold transition-all disabled:opacity-60"
+              disabled={loading}
+              className="h-16 rounded-2xl text-base font-bold transition-all active:scale-95"
               style={{
-                backgroundColor: saved ? 'rgba(48,209,88,0.15)' : '#FFD60A',
-                color: saved ? '#30D158' : '#0D0D0F',
-                border: saved ? '1.5px solid #30D158' : 'none',
+                backgroundColor: saved ? 'rgba(0,230,118,0.18)' : '#FFD60A',
+                color: saved ? '#00E676' : '#0A0B12',
+                border: saved ? '2px solid rgba(0,230,118,0.5)' : '2px solid transparent',
               }}
             >
               {loading ? '…' : saved ? '✓ Saved' : 'Save'}
             </motion.button>
           </div>
-          {error && <p className="text-center text-xs text-red-400">{error}</p>}
-          {saved && <p className="text-center text-xs text-green-400 font-medium">Bet saved ✓</p>}
+          {error && <p className="text-center text-xs" style={{ color: '#FF1744' }}>{error}</p>}
         </>
       ) : (
         <div className="py-4 text-center text-sm font-medium rounded-2xl" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}>

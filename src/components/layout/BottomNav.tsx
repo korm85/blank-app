@@ -2,14 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, CalendarDays, Trophy, History, User } from 'lucide-react'
+import { Home, CalendarDays, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/bets', icon: CalendarDays, label: 'Today' },
-  { href: '/leaderboard', icon: Trophy, label: 'League' },
-  { href: '/history', icon: History, label: 'History' },
+  { href: '/bets', icon: CalendarDays, label: 'Matches' },
   { href: '/profile', icon: User, label: 'Me' },
 ]
 
@@ -29,7 +27,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                'flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-all active:scale-90',
+                'flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-all active:scale-90',
               )}
             >
               <Icon

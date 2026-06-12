@@ -4,13 +4,14 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, MessageCircle, Save, Check, LogOut, Bell, BellOff } from 'lucide-react'
+import { Mail, MessageCircle, Save, Check, LogOut, Bell, BellOff, Camera } from 'lucide-react'
 import { UserSelector } from '@/components/ui/UserSelector'
 import { useUser } from '@/components/providers/UserProvider'
 import { usePlayers } from '@/components/providers/PlayersProvider'
 import { Avatar } from '@/components/ui/Avatar'
 import { supabase } from '@/lib/supabase'
 import { GROUP_STAGE_MATCHES } from '@/data/schedule'
+import { getFavoriteTeamCode, saveFavoriteTeam } from '@/lib/favorites'
 import type { Bet } from '@/types'
 
 const NOTIF_KEY = (id: string) => `bfg_notif_${id}`
@@ -23,6 +24,10 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [notifSaved, setNotifSaved] = useState(false)
+  const [favTeam, setFavTeamState] = useState('')
+  const [avatarUrl, setAvatarUrlState] = useState('')
+  const [editingAvatar, setEditingAvatar] = useState(false)
+  const [avatarSaved, setAvatarSaved] = useState(false)
   const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
@@ -34,6 +39,8 @@ export default function ProfilePage() {
     const stored = JSON.parse(localStorage.getItem(NOTIF_KEY(userId)) || '{}')
     setEmail(stored.email || '')
     setPhone(stored.phone || '')
+    setFavTeamState(getFavoriteTeamCode(userId))
+    setAvatarUrlState(user?.avatarUrl ?? '')
 
     try {
       const { data } = await supabase
@@ -90,6 +97,15 @@ export default function ProfilePage() {
     setTimeout(() => setTestEmailState('idle'), 3000)
   }
 
+  const saveAvatar = async () => {
+    if (!userId) return
+    await supabase.from('users').update({ avatar_url: avatarUrl.trim() || null }).eq('id', userId)
+    await refreshPlayers()
+    setAvatarSaved(true)
+    setEditingAvatar(false)
+    setTimeout(() => setAvatarSaved(false), 2000)
+  }
+
   const saveNotifications = () => {
     if (!userId) return
     localStorage.setItem(NOTIF_KEY(userId), JSON.stringify({ email: email.trim(), phone: phone.trim() }))
@@ -128,7 +144,33 @@ export default function ProfilePage() {
           border: `1px solid ${user.color}30`,
         }}
       >
-        <Avatar name={user.name} color={user.color} avatarUrl={user.avatarUrl} size="xl" />
+        <div className="relative">
+          <Avatar name={user.name} color={user.color} avatarUrl={user.avatarUrl} size="xl" />
+          <button
+            onClick={() => setEditingAvatar(v => !v)}
+            className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}
+          >
+            <Camera size={14} />
+          </button>
+        </div>
+        {editingAvatar && (
+          <div className="mt-3 w-full px-4 flex gap-2">
+            <input
+              type="url"
+              value={avatarUrl}
+              onChange={e => setAvatarUrlState(e.target.value)}
+              placeholder="Paste image URL…"
+              className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: 'var(--bg-card-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+            <button onClick={saveAvatar}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold"
+              style={{ backgroundColor: '#FFD60A', color: '#0D0D0F' }}>
+              {avatarSaved ? '✓' : 'Save'}
+            </button>
+          </div>
+        )}
         <h2 className="text-2xl font-bold mt-4 mb-1" style={{ color: 'var(--text-primary)' }}>
           {user.name}
         </h2>
@@ -153,6 +195,52 @@ export default function ProfilePage() {
           </motion.div>
         ))}
       </div>
+
+      {/* Favourite team */}
+      <motion.div
+        initial={false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0 }}
+        className="mb-6 p-4 rounded-3xl"
+        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      >
+        <p className="text-sm font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+          Favourite team
+        </p>
+        {(() => {
+          const allTeams = Array.from(
+            new Map(
+              GROUP_STAGE_MATCHES.flatMap(m => [m.homeTeam, m.awayTeam]).map(t => [t.code, t])
+            ).values()
+          ).sort((a, b) => a.name.localeCompare(b.name))
+          return (
+            <div className="flex flex-wrap gap-2">
+              {allTeams.map(t => (
+                <button
+                  key={t.code}
+                  onClick={() => {
+                    setFavTeamState(t.code)
+                    if (userId) saveFavoriteTeam(userId, t.code, (c) => {
+                      supabase.from('users').update({ favorite_team: c }).eq('id', userId).then(() => {})
+                    })
+                  }}
+                  className="flex flex-col items-center gap-0.5 p-2 rounded-xl transition-all active:scale-95"
+                  style={{
+                    width: 52,
+                    backgroundColor: favTeam === t.code ? 'rgba(255,214,10,0.15)' : 'var(--bg-card-2)',
+                    border: `2px solid ${favTeam === t.code ? '#FFD60A' : 'transparent'}`,
+                  }}
+                >
+                  <span className="text-xl leading-none">{t.flag}</span>
+                  <span className="text-[10px] font-bold" style={{ color: favTeam === t.code ? '#FFD60A' : 'var(--text-secondary)' }}>
+                    {t.code}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )
+        })()}
+      </motion.div>
 
       {/* Notifications */}
       <motion.div
@@ -213,30 +301,30 @@ export default function ProfilePage() {
         {/* Save contact info */}
         <button
           onClick={saveNotifications}
-          className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3"
+          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3"
           style={{ backgroundColor: notifSaved ? '#30D158' : '#FFD60A', color: '#0D0D0F' }}
         >
-          {notifSaved ? <><Check size={16} /> Saved!</> : <><Save size={16} /> Save notifications</>}
+          {notifSaved ? <><Check size={16} /> Saved!</> : <><Save size={16} /> Save</>}
         </button>
 
         {/* Browser push notifications */}
         <button
           onClick={pushPermission === 'granted' ? undefined : enablePush}
           disabled={pushPermission === 'unsupported' || pushPermission === 'denied'}
-          className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3 disabled:opacity-40"
+          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3 disabled:opacity-40"
           style={{
             backgroundColor: pushPermission === 'granted' ? 'rgba(48,209,88,0.15)' : 'var(--bg-card-2)',
-            border: `1.5px solid ${pushPermission === 'granted' ? '#30D158' : 'var(--border)'}`,
+            border: `1px solid ${pushPermission === 'granted' ? '#30D158' : 'var(--border)'}`,
             color: pushPermission === 'granted' ? '#30D158' : 'var(--text-primary)',
           }}
         >
           {pushPermission === 'granted'
-            ? <><Bell size={16} /> Push notifications on</>
+            ? <><Bell size={16} /> Browser notifications ON</>
             : pushPermission === 'denied'
-            ? <><BellOff size={16} /> Blocked — enable in phone settings</>
+            ? <><BellOff size={16} /> Notifications blocked (enable in browser settings)</>
             : pushPermission === 'unsupported'
             ? <><BellOff size={16} /> Notifications not supported</>
-            : <><Bell size={16} /> Enable push notifications</>}
+            : <><Bell size={16} /> Enable browser notifications</>}
         </button>
 
         {/* Test email (only shown when email is saved) */}
@@ -244,13 +332,13 @@ export default function ProfilePage() {
           <button
             onClick={sendTestEmail}
             disabled={testEmailState === 'sending'}
-            className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-50"
-            style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)', border: '1.5px solid var(--border)' }}
+            className="w-full py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
             {testEmailState === 'sending' ? '…Sending'
               : testEmailState === 'sent' ? '✅ Test email sent!'
               : testEmailState === 'error' ? '⚠️ Email not configured yet'
-              : <><Mail size={14} /> Send test email</>}
+              : <><Mail size={14} /> Send test email to {email.trim()}</>}
           </button>
         )}
 
@@ -292,8 +380,8 @@ export default function ProfilePage() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0 }}
         onClick={() => { localStorage.removeItem('bfg_user_id'); setUserId('') }}
-        className="w-full py-4 rounded-full text-sm font-semibold flex items-center justify-center gap-2 mb-8"
-        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1.5px solid var(--border)' }}
+        className="w-full py-3 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 mb-8"
+        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
       >
         <LogOut size={15} />
         Sign out
