@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, MessageCircle, Save, Check, LogOut } from 'lucide-react'
+import { Mail, MessageCircle, Save, Check, LogOut, Bell, BellOff } from 'lucide-react'
 import { UserSelector } from '@/components/ui/UserSelector'
 import { useUser } from '@/components/providers/UserProvider'
 import { usePlayers } from '@/components/providers/PlayersProvider'
@@ -23,6 +23,8 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [notifSaved, setNotifSaved] = useState(false)
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default')
+  const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
   const user = players.find(p => p.id === userId)
 
@@ -55,6 +57,38 @@ export default function ProfilePage() {
   }, [userId])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!('Notification' in window)) { setPushPermission('unsupported'); return }
+    setPushPermission(Notification.permission)
+    navigator.serviceWorker?.register('/sw.js').catch(() => {})
+  }, [])
+
+  const enablePush = async () => {
+    if (!('Notification' in window)) return
+    const perm = await Notification.requestPermission()
+    setPushPermission(perm)
+    if (perm === 'granted') {
+      new Notification('Boys For Goals ⚽', {
+        body: "You're set! We'll remind you when a match is about to kick off.",
+        icon: '/icon-192.png',
+        tag: 'bfg-test',
+      })
+    }
+  }
+
+  const sendTestEmail = async () => {
+    if (!email.trim()) return
+    setTestEmailState('sending')
+    try {
+      const res = await fetch(`/api/notify?test=1&email=${encodeURIComponent(email.trim())}`)
+      setTestEmailState(res.ok ? 'sent' : 'error')
+    } catch {
+      setTestEmailState('error')
+    }
+    setTimeout(() => setTestEmailState('idle'), 3000)
+  }
 
   const saveNotifications = () => {
     if (!userId) return
@@ -173,16 +207,53 @@ export default function ProfilePage() {
         </div>
 
         <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>
-          Get reminders 1 hour before games and score updates when matches finish.
+          Reminders 1–2 hours before kickoff when betting is still open.
         </p>
 
+        {/* Save contact info */}
         <button
           onClick={saveNotifications}
-          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98"
+          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3"
           style={{ backgroundColor: notifSaved ? '#30D158' : '#FFD60A', color: '#0D0D0F' }}
         >
           {notifSaved ? <><Check size={16} /> Saved!</> : <><Save size={16} /> Save</>}
         </button>
+
+        {/* Browser push notifications */}
+        <button
+          onClick={pushPermission === 'granted' ? undefined : enablePush}
+          disabled={pushPermission === 'unsupported' || pushPermission === 'denied'}
+          className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98 mb-3 disabled:opacity-40"
+          style={{
+            backgroundColor: pushPermission === 'granted' ? 'rgba(48,209,88,0.15)' : 'var(--bg-card-2)',
+            border: `1px solid ${pushPermission === 'granted' ? '#30D158' : 'var(--border)'}`,
+            color: pushPermission === 'granted' ? '#30D158' : 'var(--text-primary)',
+          }}
+        >
+          {pushPermission === 'granted'
+            ? <><Bell size={16} /> Browser notifications ON</>
+            : pushPermission === 'denied'
+            ? <><BellOff size={16} /> Notifications blocked (enable in browser settings)</>
+            : pushPermission === 'unsupported'
+            ? <><BellOff size={16} /> Notifications not supported</>
+            : <><Bell size={16} /> Enable browser notifications</>}
+        </button>
+
+        {/* Test email (only shown when email is saved) */}
+        {email.trim() && (
+          <button
+            onClick={sendTestEmail}
+            disabled={testEmailState === 'sending'}
+            className="w-full py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          >
+            {testEmailState === 'sending' ? '…Sending'
+              : testEmailState === 'sent' ? '✅ Test email sent!'
+              : testEmailState === 'error' ? '⚠️ Email not configured yet'
+              : <><Mail size={14} /> Send test email to {email.trim()}</>}
+          </button>
+        )}
+
       </motion.div>
 
       {/* Switch player */}

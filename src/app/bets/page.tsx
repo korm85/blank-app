@@ -76,6 +76,22 @@ export default function MatchesPage() {
         {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       </p>
 
+      {/* Alert banner for matches closing within 60 min */}
+      {!loading && matches.some(m => {
+        const mins = (new Date(m.kickoffUtc).getTime() - Date.now()) / 60_000
+        return mins > 0 && mins <= 60
+      }) && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 px-4 py-3 rounded-2xl mb-4 text-sm font-semibold"
+          style={{ backgroundColor: 'rgba(255,214,10,0.15)', border: '1px solid rgba(255,214,10,0.4)', color: '#FFD60A' }}
+        >
+          <span className="animate-pulse">⚡</span>
+          Betting closes in under an hour — place your bet!
+        </motion.div>
+      )}
+
       {loading ? (
         <div className="space-y-4">
           {[1, 2].map(i => <div key={i} className="h-44 rounded-3xl shimmer" />)}
