@@ -61,9 +61,15 @@ export async function GET() {
         senderData: { chatId: chat, sender: 'debug@c.us', senderName: 'Debug' },
         messageData: { typeMessage: 'textMessage', textMessageData: { textMessage: '!ping' } },
       }
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000'
+      // Use canonical production URL, not deployment-specific VERCEL_URL (which has auth protection)
+      const vercelEnv = process.env.VERCEL_ENV
+      const baseUrl = vercelEnv === 'production'
+        ? 'https://blank-app-korm85s-projects.vercel.app'
+        : vercelEnv === 'preview' && process.env.VERCEL_BRANCH_URL
+          ? `https://${process.env.VERCEL_BRANCH_URL}`
+          : process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : 'http://localhost:3000'
       const res = await fetch(`${baseUrl}/api/whatsapp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
