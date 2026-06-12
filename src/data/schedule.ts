@@ -213,9 +213,19 @@ export function getNextMatch(): Match | null {
 export function getUpcomingTodayMatches(): Match[] {
   const today = new Date().toISOString().split('T')[0]
   const now = new Date()
-  const cutoff = new Date(now.getTime() + 5 * 60 * 1000)
   return GROUP_STAGE_MATCHES.filter(m => {
     const kickoff = new Date(m.kickoffUtc)
-    return m.kickoffUtc.startsWith(today) && kickoff > cutoff
+    return m.kickoffUtc.startsWith(today) && kickoff > now
+  })
+}
+
+export function getUpcomingDaysMatches(daysAhead = 2): Match[] {
+  const now = new Date()
+  const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+  const cutoff = new Date(startOfToday)
+  cutoff.setUTCDate(cutoff.getUTCDate() + daysAhead + 1)
+  return GROUP_STAGE_MATCHES.filter(m => {
+    const kickoff = new Date(m.kickoffUtc)
+    return kickoff >= startOfToday && kickoff < cutoff
   })
 }

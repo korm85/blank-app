@@ -94,7 +94,7 @@ export default function LeaderboardPage() {
         <>
           {leader && leader.totalPoints > 0 && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={false}
               animate={{ opacity: 1, scale: 1 }}
               className="mb-5 p-5 rounded-3xl text-center"
               style={{

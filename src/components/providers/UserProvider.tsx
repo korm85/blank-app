@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { STATIC_USERS } from '@/lib/users'
+import { usePlayers } from './PlayersProvider'
 
 interface UserContextType {
   userId: string | null
@@ -16,14 +16,15 @@ const UserContext = createContext<UserContextType>({
 })
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const { players } = usePlayers()
   const [userId, setUserIdState] = useState<string | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('bfg_user_id')
-    if (stored && STATIC_USERS.find(u => u.id === stored)) {
+    if (stored && players.find(u => u.id === stored)) {
       setUserIdState(stored)
     }
-  }, [])
+  }, [players])
 
   const setUserId = (id: string) => {
     localStorage.setItem('bfg_user_id', id)

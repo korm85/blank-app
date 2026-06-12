@@ -79,17 +79,17 @@ const REGIONS = [
   'ca-central-1', 'sa-east-1'
 ]
 
-async function tryConnect(ref: string, password: string, region: string): Promise<Client | null> {
+async function tryConnect(url: string): Promise<{ client: Client | null; error: string }> {
   const client = new Client({
-    connectionString: `postgresql://postgres.${ref}:${encodeURIComponent(password)}@aws-0-${region}.pooler.supabase.com:6543/postgres`,
+    connectionString: url,
     ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 4000,
+    connectionTimeoutMillis: 5000,
   })
   try {
     await client.connect()
-    return client
-  } catch {
-    return null
+    return { client, error: '' }
+  } catch (e) {
+    return { client: null, error: e instanceof Error ? e.message : String(e) }
   }
 }
 
@@ -101,35 +101,56 @@ export async function GET(req: NextRequest) {
   }
 
   const ref = process.env.SUPABASE_PROJECT_REF!
-  // Accept password from env var (production) or query param (first-time setup)
   const password = process.env.SUPABASE_DB_PASSWORD ?? req.nextUrl.searchParams.get('dbpass')
 
   if (!password) {
     return NextResponse.json({ error: 'dbpass parameter required for first-time setup' }, { status: 400 })
   }
 
-  let client: Client | null = null
-  let connectedRegion = ''
+  const enc = encodeURIComponent(password)
+  const attempts: { url: string; error: string }[] = []
 
-  for (const region of REGIONS) {
-    client = await tryConnect(ref, password, region)
-    if (client) { connectedRegion = region; break }
+  async function tryUrl(url: string) {
+    const { client, error } = await tryConnect(url)
+    if (client) {
+      try {
+        await client.query(SCHEMA_SQL)
+        await client.end()
+        return url
+      } catch (e: unknown) {
+        await client.end()
+        throw e
+      }
+    }
+    attempts.push({ url: url.replace(enc, '***'), error })
+    return null
   }
 
-  if (!client) {
-    return NextResponse.json({ error: 'Could not connect to database. Check password and try again.' }, { status: 500 })
-  }
-
+  // 1. Direct connection (no pooler) — fastest, no region guessing needed
+  const directUrl = `postgresql://postgres:${enc}@db.${ref}.supabase.co:5432/postgres`
   try {
-    await client.query(SCHEMA_SQL)
-    await client.end()
-    return NextResponse.json({
-      success: true,
-      region: connectedRegion,
-      message: 'Database initialized — tables, RLS policies, and users created.'
-    })
+    const hit = await tryUrl(directUrl)
+    if (hit) return NextResponse.json({ success: true, via: 'direct', message: 'Database initialized.' })
   } catch (e: unknown) {
-    await client.end()
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
   }
+
+  // 2. Try first 3 most-common pooler regions only (keeps under Vercel's timeout)
+  const quickRegions = ['us-east-1', 'eu-west-1', 'eu-central-1']
+  for (const region of quickRegions) {
+    for (const port of [6543, 5432]) {
+      const url = `postgresql://postgres.${ref}:${enc}@aws-0-${region}.pooler.supabase.com:${port}/postgres`
+      try {
+        const hit = await tryUrl(url)
+        if (hit) return NextResponse.json({ success: true, via: `pooler-${region}:${port}`, message: 'Database initialized.' })
+      } catch (e: unknown) {
+        return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
+      }
+    }
+  }
+
+  return NextResponse.json({
+    error: 'Could not connect to database.',
+    attempts: attempts.slice(0, 8)
+  }, { status: 500 })
 }

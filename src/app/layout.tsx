@@ -3,6 +3,7 @@ import './globals.css'
 import { Providers } from '@/components/providers/Providers'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Header } from '@/components/layout/Header'
+import { OnboardingOverlay } from '@/components/ui/OnboardingOverlay'
 
 export const metadata: Metadata = {
   title: 'Boys For Goals',
@@ -36,9 +37,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <Providers>
+          <OnboardingOverlay />
           <div className="flex flex-col min-h-dvh">
             <Header />
-            <main className="flex-1 pb-24 pt-16">
+            <main className="flex-1 pb-24 pt-12">
               {children}
             </main>
             <BottomNav />

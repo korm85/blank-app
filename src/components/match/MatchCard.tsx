@@ -1,28 +1,39 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import type { Match } from '@/types'
-import { formatKickoff, formatMatchDate, isBettingOpen } from '@/lib/utils'
+import type { Match, Bet } from '@/types'
+import { formatKickoff, isBettingOpen } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 interface MatchCardProps {
   match: Match
   index?: number
   compact?: boolean
+  userBet?: Bet
+  onClick?: () => void
 }
 
-export function MatchCard({ match, index = 0, compact = false }: MatchCardProps) {
+export function MatchCard({ match, index = 0, compact = false, userBet, onClick }: MatchCardProps) {
   const isOpen = isBettingOpen(match.kickoffUtc)
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
+  const hasBet = !!userBet
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 25 }}
-      className={cn('rounded-2xl overflow-hidden', compact ? 'p-3' : 'p-4')}
-      style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+    <motion.button
+      initial={false}
+      onClick={onClick}
+      className={cn(
+        'w-full text-left rounded-2xl overflow-hidden transition-all active:scale-98',
+        compact ? 'p-3' : 'p-4',
+        onClick && 'cursor-pointer'
+      )}
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        border: hasBet
+          ? '1px solid rgba(255,214,10,0.4)'
+          : '1px solid var(--border)',
+      }}
     >
       {/* Stage / time row */}
       <div className="flex items-center justify-between mb-3">
@@ -30,7 +41,7 @@ export function MatchCard({ match, index = 0, compact = false }: MatchCardProps)
           className="text-xs font-medium px-2 py-1 rounded-full"
           style={{ backgroundColor: 'var(--bg-card-2)', color: 'var(--text-secondary)' }}
         >
-          Group {match.group} • MD{match.matchday}
+          Group {match.group} · MD{match.matchday}
         </span>
         <div className="flex items-center gap-2">
           {isLive && (
@@ -41,7 +52,7 @@ export function MatchCard({ match, index = 0, compact = false }: MatchCardProps)
           )}
           {!isFinished && (
             <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {formatMatchDate(match.kickoffUtc)} {formatKickoff(match.kickoffUtc)}
+              {formatKickoff(match.kickoffUtc)}
             </span>
           )}
         </div>
@@ -75,9 +86,21 @@ export function MatchCard({ match, index = 0, compact = false }: MatchCardProps)
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1">
-              <span className="text-xl font-bold" style={{ color: 'var(--text-tertiary)' }}>vs</span>
-              {isOpen && (
-                <span className="text-xs font-medium text-yellow-400">Bet open</span>
+              {hasBet ? (
+                <span className="text-base font-bold tabular-nums" style={{ color: '#FFD60A' }}>
+                  {userBet!.homeScore} – {userBet!.awayScore}
+                </span>
+              ) : (
+                <span className="text-xl font-bold" style={{ color: 'var(--text-tertiary)' }}>vs</span>
+              )}
+              {isOpen && !hasBet && (
+                <span className="text-xs font-medium text-yellow-400">Tap to bet</span>
+              )}
+              {hasBet && isOpen && (
+                <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>Edit</span>
+              )}
+              {hasBet && !isOpen && (
+                <span className="text-xs text-green-400 font-medium">Locked ✓</span>
               )}
             </div>
           )}
@@ -99,6 +122,6 @@ export function MatchCard({ match, index = 0, compact = false }: MatchCardProps)
           </span>
         </div>
       )}
-    </motion.div>
+    </motion.button>
   )
 }

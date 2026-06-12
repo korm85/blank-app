@@ -105,7 +105,7 @@ export default function HistoryPage() {
             return (
               <motion.div
                 key={match.id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(mi * 0.04, 0.3) }}
               >
