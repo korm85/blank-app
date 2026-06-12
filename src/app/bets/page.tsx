@@ -101,12 +101,7 @@ export default function MatchesPage() {
               : []
 
             return (
-              <motion.div
-                key={match.id}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: mi * 0.07, type: 'spring', stiffness: 280, damping: 26 }}
-              >
+              <div key={match.id}>
                 {/* Match card */}
                 <button
                   onClick={() => setActiveMatch(match)}
@@ -244,7 +239,7 @@ export default function MatchesPage() {
                     </AnimatePresence>
                   </div>
                 </button>
-              </motion.div>
+              </div>
             )
           })}
         </div>

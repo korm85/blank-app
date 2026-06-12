@@ -58,14 +58,14 @@ export function OnboardingOverlay() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-end justify-center p-4"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-6"
           style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
         >
           <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+            initial={{ scale: 0.92, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.92, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
             className="w-full max-w-sm rounded-3xl overflow-hidden"
             style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}
           >

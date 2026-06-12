@@ -21,9 +21,7 @@ export function MatchCard({ match, index = 0, compact = false, userBet, onClick 
 
   return (
     <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 25 }}
+      initial={false}
       onClick={onClick}
       className={cn(
         'w-full text-left rounded-2xl overflow-hidden transition-all active:scale-98',

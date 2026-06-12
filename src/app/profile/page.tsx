@@ -86,7 +86,7 @@ export default function ProfilePage() {
     <div className="min-h-dvh px-4 py-4" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Profile header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center py-8 mb-6 rounded-3xl"
         style={{
@@ -106,9 +106,9 @@ export default function ProfilePage() {
         {statCards.map((stat, i) => (
           <motion.div
             key={stat.label}
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 + i * 0.06 }}
+            transition={{ duration: 0 }}
             className="p-4 rounded-2xl"
             style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
@@ -122,9 +122,9 @@ export default function ProfilePage() {
 
       {/* Notifications */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35 }}
+        transition={{ duration: 0 }}
         className="mb-6 p-4 rounded-3xl"
         style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
@@ -188,9 +188,9 @@ export default function ProfilePage() {
       {/* Switch player */}
       {otherPlayers.length > 0 && (
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
+          transition={{ duration: 0 }}
           className="mb-6"
         >
           <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
@@ -200,9 +200,9 @@ export default function ProfilePage() {
             {otherPlayers.map((u, i) => (
               <motion.button
                 key={u.id}
-                initial={{ opacity: 0, x: -10 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.45 + i * 0.04 }}
+                transition={{ duration: 0 }}
                 onClick={() => setUserId(u.id)}
                 className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all active:scale-98"
                 style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
@@ -217,9 +217,9 @@ export default function ProfilePage() {
 
       {/* Sign out */}
       <motion.button
-        initial={{ opacity: 0 }}
+        initial={false}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
+        transition={{ duration: 0 }}
         onClick={() => { localStorage.removeItem('bfg_user_id'); setUserId('') }}
         className="w-full py-3 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 mb-8"
         style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
