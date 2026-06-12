@@ -1,6 +1,6 @@
 export async function sendWhatsApp(chatId: string, message: string): Promise<boolean> {
-  const id = process.env.green_api_id
-  const token = process.env.green_api_token
+  const id = process.env.green_api_id ?? process.env.GREEN_API_ID
+  const token = process.env.green_api_token ?? process.env.GREEN_API_TOKEN
   if (!id || !token) return false
 
   try {

@@ -154,10 +154,14 @@ async function buildScores(): Promise<string> {
 async function buildMyBets(senderName: string): Promise<string> {
   try {
     const supabase = getSupabase()
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, name')
-      .ilike('name', senderName)
+    // Try exact match first, then partial match (WhatsApp display name may differ)
+    let { data: users } = await supabase
+      .from('users').select('id, name').ilike('name', senderName)
+    if (!users?.length) {
+      const firstWord = senderName.split(' ')[0]
+      const res = await supabase.from('users').select('id, name').ilike('name', `%${firstWord}%`)
+      users = res.data
+    }
 
     const user = users?.[0]
     if (!user) return `❓ No player found named "${senderName}". Check your name in the app.`
