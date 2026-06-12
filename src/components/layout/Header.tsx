@@ -1,16 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTheme } from 'next-themes'
-import { Sun, Moon } from 'lucide-react'
 import { useUser } from '@/components/providers/UserProvider'
+import { usePlayers } from '@/components/providers/PlayersProvider'
 import { Avatar } from '@/components/ui/Avatar'
-import { getUserById } from '@/lib/users'
 
 export function Header() {
-  const { theme, setTheme } = useTheme()
   const { userId } = useUser()
-  const user = userId ? getUserById(userId) : null
+  const { players } = usePlayers()
+  const user = players.find(p => p.id === userId)
   const [hidden, setHidden] = useState(false)
   const [lastY, setLastY] = useState(0)
 
@@ -33,18 +31,10 @@ export function Header() {
         transform: hidden ? 'translateY(-100%)' : 'translateY(0)',
       }}
     >
-      <div className="max-w-lg mx-auto px-4 h-12 flex items-center justify-end gap-3">
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90"
-          style={{ backgroundColor: 'var(--bg-card-2)' }}
-        >
-          {theme === 'dark'
-            ? <Sun size={15} style={{ color: 'var(--text-secondary)' }} />
-            : <Moon size={15} style={{ color: 'var(--text-secondary)' }} />
-          }
-        </button>
-
+      <div className="max-w-lg mx-auto px-4 h-12 flex items-center justify-between">
+        <span className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          ⚽ Boys For Goals
+        </span>
         {user && (
           <Avatar name={user.name} color={user.color} avatarUrl={user.avatarUrl} size="sm" />
         )}
