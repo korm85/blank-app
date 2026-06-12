@@ -52,15 +52,55 @@ export async function GET() {
     }
   }
 
+  // Simulate a !ping webhook call to ourselves to test the full handler pipeline
+  let selfTestResult = 'not attempted'
+  if (instanceState === 'authorized') {
+    try {
+      const fakeWebhook = {
+        typeWebhook: 'incomingMessageReceived',
+        senderData: { chatId: chat, sender: 'debug@c.us', senderName: 'Debug' },
+        messageData: { typeMessage: 'textMessage', textMessageData: { textMessage: '!ping' } },
+      }
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000'
+      const res = await fetch(`${baseUrl}/api/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fakeWebhook),
+      })
+      selfTestResult = res.ok
+        ? `✅ Webhook handler returned ${res.status} — check group for "Pong" reply`
+        : `❌ Webhook handler returned ${res.status}`
+    } catch (e) {
+      selfTestResult = `❌ error calling self: ${e}`
+    }
+  }
+
+  // Check Green API webhook settings
+  let webhookSettings: unknown = 'not checked'
+  try {
+    const res = await fetch(`https://api.green-api.com/waInstance${id}/getSettings/${token}`)
+    const data = await res.json() as Record<string, unknown>
+    webhookSettings = {
+      webhookUrl: data.webhookUrl,
+      incomingWebhook: data.incomingWebhook,
+      outgoingMessageWebhook: data.outgoingMessageWebhook,
+      delaySendMessagesMilliseconds: data.delaySendMessagesMilliseconds,
+    }
+  } catch (e) {
+    webhookSettings = `error: ${e}`
+  }
+
   return NextResponse.json({
     ok: instanceState === 'authorized',
     instanceState,
     sendTest: sendResult,
+    selfTest: selfTestResult,
+    webhookSettings,
     env: envStatus,
     hint: instanceState !== 'authorized'
-      ? '⚠️ Instance not authorized — open Green API console and re-scan the QR code, then retry'
-      : sendResult.startsWith('✅')
-        ? '✅ All good — if !ping still fails in WhatsApp, check the webhook URL is saved in Green API → Account settings'
-        : '⚠️ Instance authorized but send failed — check the response above',
+      ? '⚠️ Re-scan QR in Green API console'
+      : '✅ Instance authorized — check webhookSettings.webhookUrl matches your deployment URL and incomingWebhook is "yes"',
   })
 }
