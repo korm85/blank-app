@@ -19,17 +19,13 @@ function getSupabase() {
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   if (url.searchParams.get('log') === '1') {
-    try {
-      const supabase = getSupabase()
-      const { data } = await supabase
-        .from('webhook_log')
-        .select('received_at, type, payload')
-        .order('received_at', { ascending: false })
-        .limit(10)
-      return NextResponse.json({ entries: data ?? [] })
-    } catch (e) {
-      return NextResponse.json({ error: String(e) })
-    }
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+      .from('webhook_log')
+      .select('received_at, type, payload')
+      .order('received_at', { ascending: false })
+      .limit(10)
+    return NextResponse.json({ entries: data ?? [], supabaseError: error ?? null })
   }
   return new NextResponse('OK', { status: 200 })
 }
@@ -43,14 +39,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Log every webhook hit to Supabase for debugging
-  try {
+  {
     const supabase = getSupabase()
-    await supabase.from('webhook_log').insert({
+    const { error } = await supabase.from('webhook_log').insert({
       received_at: new Date().toISOString(),
       type: body.typeWebhook ?? 'unknown',
       payload: JSON.stringify(body).slice(0, 2000),
     })
-  } catch { /* table may not exist yet — ignore */ }
+    if (error) console.error('[webhook_log insert]', JSON.stringify(error))
+  }
 
   // Only handle incoming text messages
   if (body.typeWebhook !== 'incomingMessageReceived') {
