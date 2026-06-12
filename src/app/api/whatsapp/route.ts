@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Only handle incoming text messages
-  if (body.typeWebhook !== 'incomingMessageReceived') {
+  if (body.typeWebhook !== 'incomingMessageReceived' && body.typeWebhook !== 'outgoingMessageReceived') {
     return new NextResponse('OK', { status: 200 })
   }
 
