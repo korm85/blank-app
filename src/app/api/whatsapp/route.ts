@@ -5,6 +5,8 @@ import { createClient } from '@supabase/supabase-js'
 import { GROUP_STAGE_MATCHES } from '@/data/schedule'
 import { sendWhatsApp } from '@/lib/whatsapp'
 
+const GROUP_ID = '120363212878988352@g.us'
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,8 +14,23 @@ function getSupabase() {
   )
 }
 
-// Green API sends a GET to verify the webhook — just return 200
-export async function GET() {
+// GET: webhook verification ping from Green API (must return 200)
+// GET ?log=1: return recent webhook log entries for debugging
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url)
+  if (url.searchParams.get('log') === '1') {
+    try {
+      const supabase = getSupabase()
+      const { data } = await supabase
+        .from('webhook_log')
+        .select('received_at, type, payload')
+        .order('received_at', { ascending: false })
+        .limit(10)
+      return NextResponse.json({ entries: data ?? [] })
+    } catch (e) {
+      return NextResponse.json({ error: String(e) })
+    }
+  }
   return new NextResponse('OK', { status: 200 })
 }
 
@@ -50,34 +67,17 @@ export async function POST(req: NextRequest) {
 
   if (!text.startsWith('!')) return new NextResponse('OK', { status: 200 })
 
+  // Reply to the group, not to an individual sender's DM
+  const replyTo = chatId.endsWith('@g.us') ? chatId : GROUP_ID
+
   const reply = await handleCommand(text, chatId, senderName)
-  if (reply) await sendWhatsApp(chatId, reply)
+  if (reply) await sendWhatsApp(replyTo, reply)
 
-  return new NextResponse('OK', { status: 200 })
-}
-
-// Read recent webhook log — for debugging only
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url)
-  if (url.searchParams.get('log') === '1') {
-    try {
-      const supabase = getSupabase()
-      const { data } = await supabase.from('webhook_log')
-        .select('received_at, type, payload')
-        .order('received_at', { ascending: false })
-        .limit(10)
-      return NextResponse.json({ entries: data ?? [] })
-    } catch (e) {
-      return NextResponse.json({ error: String(e) })
-    }
-  }
   return new NextResponse('OK', { status: 200 })
 }
 
 async function handleCommand(text: string, chatId: string, senderName: string): Promise<string> {
-  if (text === '!ping') {
-    return `🏓 Pong! Bot is alive. Chat ID: ${chatId}`
-  }
+  if (text === '!ping') return `🏓 Pong! Bot is alive. Chat ID: ${chatId}`
 
   if (text === '!help') {
     return (
@@ -85,27 +85,14 @@ async function handleCommand(text: string, chatId: string, senderName: string): 
       '!leaderboard — current standings\n' +
       '!scores — today\'s matches\n' +
       '!mybets — your bets today\n' +
-      '!setup — show this chat\'s ID\n' +
       '!ping — check bot is alive\n' +
       '!help — this message'
     )
   }
 
-  if (text === '!setup') {
-    return `🔧 Chat ID: ${chatId}\n\nAdd this as the GREEN_API_CHAT env var in Vercel.`
-  }
-
-  if (text === '!leaderboard') {
-    return await buildLeaderboard()
-  }
-
-  if (text === '!scores') {
-    return await buildScores()
-  }
-
-  if (text === '!mybets') {
-    return await buildMyBets(senderName)
-  }
+  if (text === '!leaderboard') return await buildLeaderboard()
+  if (text === '!scores') return await buildScores()
+  if (text === '!mybets') return await buildMyBets(senderName)
 
   return ''
 }
@@ -115,9 +102,7 @@ async function buildLeaderboard(): Promise<string> {
     const supabase = getSupabase()
     const { data: users } = await supabase.from('users').select('id, name')
     const { data: bets } = await supabase
-      .from('bets')
-      .select('user_id, points_earned')
-      .not('points_earned', 'is', null)
+      .from('bets').select('user_id, points_earned').not('points_earned', 'is', null)
 
     if (!users || !bets) return '❌ Could not load leaderboard.'
 
@@ -143,36 +128,25 @@ async function buildScores(): Promise<string> {
     const supabase = getSupabase()
     const today = new Date().toISOString().slice(0, 10)
     const todayMatches = GROUP_STAGE_MATCHES.filter(m => m.kickoffUtc.startsWith(today))
-
     if (todayMatches.length === 0) return `📅 No matches today (${today}).`
 
     const { data: dbMatches } = await supabase
-      .from('matches')
-      .select('id, home_score, away_score, status')
+      .from('matches').select('id, home_score, away_score, status')
       .in('id', todayMatches.map(m => m.id))
 
     const scoreMap: Record<string, { home: number | null; away: number | null; status: string }> = {}
-    for (const m of dbMatches ?? []) {
-      scoreMap[m.id] = { home: m.home_score, away: m.away_score, status: m.status }
-    }
+    for (const m of dbMatches ?? []) scoreMap[m.id] = { home: m.home_score, away: m.away_score, status: m.status }
 
     const lines = todayMatches.map(m => {
       const db = scoreMap[m.id]
-      const kickoff = new Date(m.kickoffUtc).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
-      const flag1 = m.homeTeam.flag
-      const flag2 = m.awayTeam.flag
-      const code1 = m.homeTeam.code
-      const code2 = m.awayTeam.code
-
-      if (db?.status === 'finished' && db.home !== null) {
-        return `${flag1} ${code1} ${db.home}–${db.away} ${code2} ${flag2} ✅`
-      }
-      if (db?.status === 'live' && db.home !== null) {
-        return `${flag1} ${code1} ${db.home}–${db.away} ${code2} ${flag2} 🔴 LIVE`
-      }
-      return `${flag1} ${code1} vs ${code2} ${flag2} — ${kickoff}`
+      const kickoff = new Date(m.kickoffUtc)
+        .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
+      if (db?.status === 'finished' && db.home !== null)
+        return `${m.homeTeam.flag} ${m.homeTeam.code} ${db.home}–${db.away} ${m.awayTeam.code} ${m.awayTeam.flag} ✅`
+      if (db?.status === 'live' && db.home !== null)
+        return `${m.homeTeam.flag} ${m.homeTeam.code} ${db.home}–${db.away} ${m.awayTeam.code} ${m.awayTeam.flag} 🔴 LIVE`
+      return `${m.homeTeam.flag} ${m.homeTeam.code} vs ${m.awayTeam.code} ${m.awayTeam.flag} — ${kickoff}`
     })
-
     return `📅 *Today's Matches*\n\n${lines.join('\n')}`
   } catch {
     return '❌ Error fetching scores.'
@@ -182,30 +156,22 @@ async function buildScores(): Promise<string> {
 async function buildMyBets(senderName: string): Promise<string> {
   try {
     const supabase = getSupabase()
-    // Try exact match first, then partial match (WhatsApp display name may differ)
-    let { data: users } = await supabase
-      .from('users').select('id, name').ilike('name', senderName)
+    let { data: users } = await supabase.from('users').select('id, name').ilike('name', senderName)
     if (!users?.length) {
-      const firstWord = senderName.split(' ')[0]
-      const res = await supabase.from('users').select('id, name').ilike('name', `%${firstWord}%`)
+      const first = senderName.split(' ')[0]
+      const res = await supabase.from('users').select('id, name').ilike('name', `%${first}%`)
       users = res.data
     }
-
     const user = users?.[0]
     if (!user) return `❓ No player found named "${senderName}". Check your name in the app.`
 
     const today = new Date().toISOString().slice(0, 10)
-    const todayMatchIds = GROUP_STAGE_MATCHES
-      .filter(m => m.kickoffUtc.startsWith(today))
-      .map(m => m.id)
-
+    const todayMatchIds = GROUP_STAGE_MATCHES.filter(m => m.kickoffUtc.startsWith(today)).map(m => m.id)
     const { data: bets } = await supabase
-      .from('bets')
-      .select('match_id, home_score, away_score, points_earned')
-      .eq('user_id', user.id)
-      .in('match_id', todayMatchIds)
+      .from('bets').select('match_id, home_score, away_score, points_earned')
+      .eq('user_id', user.id).in('match_id', todayMatchIds)
 
-    if (!bets || bets.length === 0) return `📋 ${senderName}, you have no bets on today's matches.`
+    if (!bets?.length) return `📋 ${senderName}, you have no bets on today's matches.`
 
     const lines = bets.map(b => {
       const match = GROUP_STAGE_MATCHES.find(m => m.id === b.match_id)
