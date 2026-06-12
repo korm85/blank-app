@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { GROUP_STAGE_MATCHES } from '@/data/schedule'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 // Called by Vercel Cron daily at 08:00 UTC.
 // Also callable with ?test=1&email=you@example.com for a test send.
