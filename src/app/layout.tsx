@@ -4,6 +4,7 @@ import { Providers } from '@/components/providers/Providers'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Header } from '@/components/layout/Header'
 import { OnboardingOverlay } from '@/components/ui/OnboardingOverlay'
+import { MatchNotifier } from '@/components/ui/MatchNotifier'
 
 export const metadata: Metadata = {
   title: 'Boys For Goals',
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <OnboardingOverlay />
+          <MatchNotifier />
           <div className="flex flex-col min-h-dvh">
             <Header />
             <main className="flex-1" style={{ paddingTop: 'calc(3rem + 1px + env(safe-area-inset-top))', paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
