@@ -11,6 +11,7 @@ import { usePlayers } from '@/components/providers/PlayersProvider'
 import { Avatar } from '@/components/ui/Avatar'
 import { supabase } from '@/lib/supabase'
 import { GROUP_STAGE_MATCHES } from '@/data/schedule'
+import { getFavoriteTeamCode, saveFavoriteTeam } from '@/lib/favorites'
 import type { Bet } from '@/types'
 
 const NOTIF_KEY = (id: string) => `bfg_notif_${id}`
@@ -23,6 +24,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [notifSaved, setNotifSaved] = useState(false)
+  const [favTeam, setFavTeamState] = useState('')
   const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
@@ -34,6 +36,7 @@ export default function ProfilePage() {
     const stored = JSON.parse(localStorage.getItem(NOTIF_KEY(userId)) || '{}')
     setEmail(stored.email || '')
     setPhone(stored.phone || '')
+    setFavTeamState(getFavoriteTeamCode(userId))
 
     try {
       const { data } = await supabase
@@ -153,6 +156,52 @@ export default function ProfilePage() {
           </motion.div>
         ))}
       </div>
+
+      {/* Favourite team */}
+      <motion.div
+        initial={false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0 }}
+        className="mb-6 p-4 rounded-3xl"
+        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      >
+        <p className="text-sm font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+          Favourite team
+        </p>
+        {(() => {
+          const allTeams = Array.from(
+            new Map(
+              GROUP_STAGE_MATCHES.flatMap(m => [m.homeTeam, m.awayTeam]).map(t => [t.code, t])
+            ).values()
+          ).sort((a, b) => a.name.localeCompare(b.name))
+          return (
+            <div className="flex flex-wrap gap-2">
+              {allTeams.map(t => (
+                <button
+                  key={t.code}
+                  onClick={() => {
+                    setFavTeamState(t.code)
+                    if (userId) saveFavoriteTeam(userId, t.code, (c) => {
+                      supabase.from('users').update({ favorite_team: c }).eq('id', userId).then(() => {})
+                    })
+                  }}
+                  className="flex flex-col items-center gap-0.5 p-2 rounded-xl transition-all active:scale-95"
+                  style={{
+                    width: 52,
+                    backgroundColor: favTeam === t.code ? 'rgba(255,214,10,0.15)' : 'var(--bg-card-2)',
+                    border: `2px solid ${favTeam === t.code ? '#FFD60A' : 'transparent'}`,
+                  }}
+                >
+                  <span className="text-xl leading-none">{t.flag}</span>
+                  <span className="text-[10px] font-bold" style={{ color: favTeam === t.code ? '#FFD60A' : 'var(--text-secondary)' }}>
+                    {t.code}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )
+        })()}
+      </motion.div>
 
       {/* Notifications */}
       <motion.div
