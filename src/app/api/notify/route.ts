@@ -9,7 +9,12 @@ export const runtime = 'nodejs'
 export async function GET(req: Request) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
-    return Response.json({ ok: false, error: 'RESEND_API_KEY not set — add it in Vercel env vars' }, { status: 503 })
+    const resendKeys = Object.keys(process.env).filter(k => k.toLowerCase().includes('resend'))
+    return Response.json({
+      ok: false,
+      error: 'RESEND_API_KEY not set — add it in Vercel env vars',
+      hint: resendKeys.length > 0 ? `Found similar keys: ${resendKeys.join(', ')}` : 'No RESEND keys found in env',
+    }, { status: 503 })
   }
 
   const url = new URL(req.url)
