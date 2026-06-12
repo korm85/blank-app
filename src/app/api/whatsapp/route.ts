@@ -20,12 +20,12 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   if (url.searchParams.get('log') === '1') {
     const supabase = getSupabase()
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('webhook_log')
       .select('received_at, type, payload')
       .order('received_at', { ascending: false })
       .limit(10)
-    return NextResponse.json({ entries: data ?? [], supabaseError: error ?? null })
+    return NextResponse.json({ entries: data ?? [] })
   }
   return new NextResponse('OK', { status: 200 })
 }
