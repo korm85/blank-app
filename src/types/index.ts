@@ -1,54 +1,45 @@
-export type TeamCode = string
+export type Language = 'ru' | 'he'
 
-export interface Team {
-  name: string
-  code: TeamCode
-  flag: string // emoji flag
-  group: string
-}
-
-export interface Match {
+export interface Profile {
   id: string
-  homeTeam: Team
-  awayTeam: Team
-  kickoffUtc: string // ISO 8601
-  venue: string
-  city: string
-  stage: 'group' | 'r32' | 'r16' | 'qf' | 'sf' | '3rd' | 'final'
-  group?: string
-  matchday?: number
-  homeScore: number | null
-  awayScore: number | null
-  status: 'scheduled' | 'live' | 'finished'
-}
-
-export interface User {
-  id: string
+  waChatId: string
   name: string
-  avatarUrl: string | null
-  color: string
+  language: Language
+  timezone: string
+  onboarded: boolean
+  voiceEnabled: boolean
   createdAt: string
 }
 
-export interface Bet {
+export interface Schedule {
   id: string
-  userId: string
-  matchId: string
-  homeScore: number
-  awayScore: number
-  pointsEarned: number | null
+  profileId: string
+  weekday: number // 0=Sunday .. 6=Saturday
+  timeLocal: string // 'HH:MM'
+  durationMinutes: number
+  active: boolean
+}
+
+export type SessionStatus = 'pending' | 'prompted' | 'completed' | 'rescheduled' | 'missed'
+export type SessionOrigin = 'scheduled' | 'delayed' | 'rescheduled'
+
+export interface WorkoutSession {
+  id: string
+  profileId: string
+  scheduledFor: string // ISO
+  weekStart: string // date, Monday of the ISO week
+  status: SessionStatus
+  origin: SessionOrigin
+  promptCount: number
+  lastPromptedAt: string | null
+}
+
+export type MessageRole = 'user' | 'assistant'
+
+export interface AnnaMessage {
+  id: string
+  profileId: string
+  role: MessageRole
+  content: string
   createdAt: string
-  user?: User
-  match?: Match
 }
-
-export interface LeaderboardEntry {
-  user: User
-  totalPoints: number
-  totalBets: number
-  exactScores: number
-  correctResults: number
-  rank: number
-}
-
-export type BetResult = 'exact' | 'correct_result_diff' | 'correct_result' | 'wrong' | 'pending'

@@ -22,3 +22,18 @@ export const supabase = new Proxy({} as SupabaseClient, {
     return typeof value === 'function' ? value.bind(client) : value
   }
 })
+
+let _serviceClient: SupabaseClient | null = null
+
+// Server-only client using the service-role key, bypassing RLS.
+// Use in API routes that must write on Mila's behalf without a user session.
+export function getServiceSupabase(): SupabaseClient {
+  if (_serviceClient) return _serviceClient
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    throw new Error('Supabase service role not configured (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)')
+  }
+  _serviceClient = createClient(url, key, { auth: { persistSession: false } })
+  return _serviceClient
+}
