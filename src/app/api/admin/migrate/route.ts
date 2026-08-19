@@ -7,7 +7,7 @@ const MIGRATIONS = [
   `create extension if not exists "uuid-ossp"`,
   `create table if not exists public.profiles (
     id uuid primary key default uuid_generate_v4(),
-    wa_chat_id text unique not null,
+    chat_id text unique not null,
     name text not null default 'Мила',
     language text not null default 'ru' check (language in ('ru', 'he')),
     timezone text not null default 'Asia/Jerusalem',
@@ -47,7 +47,7 @@ const MIGRATIONS = [
     received_at timestamptz,
     type text,
     payload text,
-    id_message text unique
+    update_id bigint unique
   )`,
   `create index if not exists schedules_profile_id_idx on public.schedules(profile_id)`,
   `create index if not exists sessions_profile_id_idx on public.sessions(profile_id)`,

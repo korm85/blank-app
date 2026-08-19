@@ -4,7 +4,7 @@ import type { Profile } from '@/types'
 export function fromRow(row: Record<string, unknown>): Profile {
   return {
     id: row.id as string,
-    waChatId: row.wa_chat_id as string,
+    chatId: row.chat_id as string,
     name: row.name as string,
     language: row.language as Profile['language'],
     timezone: row.timezone as string,
@@ -14,17 +14,17 @@ export function fromRow(row: Record<string, unknown>): Profile {
   }
 }
 
-/** Finds or creates the profile for an incoming WhatsApp chat. First contact seeds `name: Мила`. */
-export async function getOrCreateProfile(waChatId: string): Promise<Profile> {
+/** Finds or creates the profile for an incoming Telegram chat. First contact seeds `name: Мила`. */
+export async function getOrCreateProfile(chatId: string): Promise<Profile> {
   const supabase = getServiceSupabase()
 
-  const { data: existing } = await supabase.from('profiles').select('*').eq('wa_chat_id', waChatId).maybeSingle()
+  const { data: existing } = await supabase.from('profiles').select('*').eq('chat_id', chatId).maybeSingle()
   if (existing) return fromRow(existing)
 
   const { data: created, error } = await supabase
     .from('profiles')
     .insert({
-      wa_chat_id: waChatId,
+      chat_id: chatId,
       name: 'Мила',
       timezone: process.env.MILA_TIMEZONE || 'Asia/Jerusalem',
     })

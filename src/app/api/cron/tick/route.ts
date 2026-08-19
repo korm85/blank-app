@@ -2,7 +2,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
-import { sendWhatsApp, sendWhatsAppVoice } from '@/lib/whatsapp'
+import { sendTelegramMessage, sendTelegramVoice } from '@/lib/telegram'
 import { speak } from '@/lib/voice'
 import { fromRow } from '@/lib/anna/profile'
 import { runAnna } from '@/lib/anna/agent'
@@ -14,10 +14,10 @@ const MISSED_AFTER_MS = 6 * 60 * 60 * 1000 // 6h since the first prompt, unresol
 const NUDGE_TRIGGER = '[Система: Мила ещё не ответила на предыдущее сообщение. Мягко напомни ещё раз, одной короткой фразой — это последнее напоминание на сегодня.]'
 
 async function notify(profile: Profile, text: string) {
-  await sendWhatsApp(profile.waChatId, text)
+  await sendTelegramMessage(profile.chatId, text)
   if (profile.voiceEnabled) {
     const audio = await speak(text, profile.language)
-    if (audio) await sendWhatsAppVoice(profile.waChatId, audio)
+    if (audio) await sendTelegramVoice(profile.chatId, audio)
   }
 }
 

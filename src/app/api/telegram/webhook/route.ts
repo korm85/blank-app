@@ -2,12 +2,11 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
-import { sendWhatsApp, sendWhatsAppVoice, downloadIncomingFile } from '@/lib/whatsapp'
+import { sendTelegramMessage, sendTelegramVoice, downloadTelegramFile } from '@/lib/telegram'
 import { speak, transcribe } from '@/lib/voice'
 import { getOrCreateProfile } from '@/lib/anna/profile'
 import { runAnna } from '@/lib/anna/agent'
 
-// GET: webhook verification ping from Green API (must return 200)
 // GET ?log=1: recent webhook log entries, for debugging
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
@@ -31,40 +30,33 @@ export async function POST(req: NextRequest) {
     return new NextResponse('OK', { status: 200 })
   }
 
-  const idMessage = (body.idMessage as string | undefined) ?? null
+  const updateId = (body.update_id as number | undefined) ?? null
   const supabase = getServiceSupabase()
   const { error: logError } = await supabase.from('webhook_log').insert({
     received_at: new Date().toISOString(),
-    type: body.typeWebhook ?? 'unknown',
+    type: 'message',
     payload: JSON.stringify(body).slice(0, 2000),
-    id_message: idMessage,
+    update_id: updateId,
   })
-  // A unique-violation on id_message means Green API retried a webhook we already processed.
+  // A unique-violation on update_id means Telegram retried a webhook we already processed.
   if (logError) {
     if (logError.code === '23505') return new NextResponse('OK', { status: 200 })
     console.error('[webhook_log insert]', JSON.stringify(logError))
   }
 
-  if (body.typeWebhook !== 'incomingMessageReceived') {
-    return new NextResponse('OK', { status: 200 })
-  }
-
-  const senderData = body.senderData as Record<string, string> | undefined
-  const messageData = body.messageData as Record<string, unknown> | undefined
-  const chatId = senderData?.chatId ?? ''
+  const message = body.message as Record<string, unknown> | undefined
+  const chat = message?.chat as Record<string, unknown> | undefined
+  const chatId = chat?.id !== undefined ? String(chat.id) : ''
   if (!chatId) return new NextResponse('OK', { status: 200 })
 
-  const typeMessage = messageData?.typeMessage as string | undefined
   let text: string | null = null
-
-  if (typeMessage === 'textMessage') {
-    const textData = messageData?.textMessageData as Record<string, string> | undefined
-    text = (textData?.textMessage ?? '').trim() || null
-  } else if (typeMessage === 'audioMessage' || typeMessage === 'voiceMessage') {
-    const fileData = messageData?.fileMessageData as Record<string, string> | undefined
-    const downloadUrl = fileData?.downloadUrl
-    if (downloadUrl) {
-      const audio = await downloadIncomingFile(downloadUrl)
+  if (typeof message?.text === 'string') {
+    text = message.text.trim() || null
+  } else if (message?.voice) {
+    const voice = message.voice as Record<string, unknown>
+    const fileId = voice.file_id as string | undefined
+    if (fileId) {
+      const audio = await downloadTelegramFile(fileId)
       if (audio) text = await transcribe(audio)
     }
   }
@@ -74,10 +66,10 @@ export async function POST(req: NextRequest) {
   const profile = await getOrCreateProfile(chatId)
   const reply = await runAnna({ profile, userText: text })
 
-  await sendWhatsApp(chatId, reply)
+  await sendTelegramMessage(chatId, reply)
   if (profile.voiceEnabled) {
     const audio = await speak(reply, profile.language)
-    if (audio) await sendWhatsAppVoice(chatId, audio)
+    if (audio) await sendTelegramVoice(chatId, audio)
   }
 
   return new NextResponse('OK', { status: 200 })

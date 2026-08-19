@@ -1,4 +1,4 @@
--- Анна — WhatsApp fitness companion for Mila
+-- Анна — Telegram fitness companion for Mila
 -- Run this in your Supabase SQL editor
 
 create extension if not exists "uuid-ossp";
@@ -6,7 +6,7 @@ create extension if not exists "uuid-ossp";
 -- One profile: Mila. Table shape supports more than one, but the app is single-user.
 create table if not exists public.profiles (
   id uuid primary key default uuid_generate_v4(),
-  wa_chat_id text unique not null,
+  chat_id text unique not null,
   name text not null default 'Мила',
   language text not null default 'ru' check (language in ('ru', 'he')),
   timezone text not null default 'Asia/Jerusalem',
@@ -48,13 +48,13 @@ create table if not exists public.messages (
   created_at timestamptz default now()
 );
 
--- Raw Green API webhook log, for debugging and idempotency (id_message dedupes retried webhooks).
+-- Raw Telegram webhook log, for debugging and idempotency (update_id dedupes retried webhooks).
 create table if not exists public.webhook_log (
   id bigint generated always as identity primary key,
   received_at timestamptz,
   type text,
   payload text,
-  id_message text unique
+  update_id bigint unique
 );
 
 -- Indexes

@@ -2,7 +2,7 @@ export type Language = 'ru' | 'he'
 
 export interface Profile {
   id: string
-  waChatId: string
+  chatId: string
   name: string
   language: Language
   timezone: string

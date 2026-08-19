@@ -67,7 +67,7 @@ export default async function DashboardPage() {
 
       {!configError && !data && (
         <Card>
-          <p>Пока нет данных — Мила ещё не написала Анне в WhatsApp.</p>
+          <p>Пока нет данных — Мила ещё не написала Анне в Telegram.</p>
         </Card>
       )}
 
