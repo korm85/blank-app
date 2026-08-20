@@ -1,0 +1,52 @@
+workflows:
+  android-debug:
+    name: Android debug build (sideload-ready, no signing needed)
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      node: latest
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Sync Capacitor
+        script: npx cap sync android
+      - name: Build debug APK
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - korm85@gmail.com
+
+  ios-unsigned-simulator:
+    name: iOS simulator build (no Apple ID needed, simulator only)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      node: latest
+      xcode: latest
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Sync Capacitor
+        script: npx cap sync ios
+      - name: Build for simulator
+        script: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App \
+            -sdk iphonesimulator -configuration Debug \
+            -derivedDataPath build
+    artifacts:
+      - ios/App/build/**/*.app
+    publishing:
+      email:
+        recipients:
+          - korm85@gmail.com
+
+  # Once an Apple ID + Codemagic's Apple Developer Portal integration are
+  # set up (Codemagic -> Teams -> Integrations -> Apple Developer Portal),
+  # add a workflow here using `ios_signing: distribution_type: development`
+  # with automatic signing to produce a real-device-installable .ipa.

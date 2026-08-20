@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sonos YouTube</string>
+    <string name="title_activity_main">Sonos YouTube</string>
+    <string name="package_name">com.korm85.sonosyoutube</string>
+    <string name="custom_url_scheme">com.korm85.sonosyoutube</string>
+</resources>
